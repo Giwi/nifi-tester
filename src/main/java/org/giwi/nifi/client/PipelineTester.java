@@ -146,20 +146,21 @@ public class PipelineTester {
             }
 
             // Create connections
-            if (pipelineData.containsKey("connections")) {
-                List<Map<String, Object>> connections = (List<Map<String, Object>>) pipelineData.get("connections");
-                for (Map<String, Object> connWrapper : connections) {
-                    // Handle both wrapper format (from converter) and flat format
-                    Map<String, Object> conn = connWrapper;
-                    if (connWrapper.containsKey("connection")) {
-                        conn = (Map<String, Object>) connWrapper.get("connection");
-                    }
-                    ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
-                    if (connEntity != null) {
-                        pgApi.createConnection(newPgId, connEntity);
-                    }
-                }
-            }
+             if (pipelineData.containsKey("connections")) {
+                 List<Map<String, Object>> connections = (List<Map<String, Object>>) pipelineData.get("connections");
+                 for (Map<String, Object> connWrapper : connections) {
+                     // Handle both wrapper format (from converter) and flat format
+                     Map<String, Object> conn = connWrapper;
+                     if (connWrapper.containsKey("connection")) {
+                         conn = (Map<String, Object>) connWrapper.get("connection");
+                     }
+                     ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
+                     if (connEntity != null) {
+                         debugConnectionEntity(connEntity);
+                         pgApi.createConnection(newPgId, connEntity);
+                     }
+                 }
+             }
 
             result.setSuccess(true);
             result.setMessage("Pipeline deployed successfully: " + newPgId);
@@ -352,12 +353,37 @@ public class PipelineTester {
     }
 
     public boolean deleteProcessGroup(String processGroupId) {
-        return true;
-    }
+         return true;
+     }
 
-    public String getAccessToken() {
-        return accessToken;
-    }
+     private void debugConnectionEntity(ConnectionEntity connEntity) {
+         System.out.println("\n=== Connection Entity Debug ===");
+         org.giwi.nifi.client.model.ConnectionDTO dto = connEntity.getComponent();
+         System.out.println("Parent Group ID: " + dto.getParentGroupId());
+         System.out.println("Name: " + dto.getName());
+         if (dto.getSource() != null) {
+             System.out.println("Source ID: " + dto.getSource().getId() + ", Type: " + dto.getSource().getType());
+         } else {
+             System.out.println("Source: null");
+         }
+         if (dto.getDestination() != null) {
+             System.out.println("Dest ID: " + dto.getDestination().getId() + ", Type: " + dto.getDestination().getType());
+         } else {
+             System.out.println("Dest: null");
+         }
+         System.out.println("Selected Relationships: " + dto.getSelectedRelationships());
+         System.out.println("FlowFile Expiration: " + dto.getFlowFileExpiration());
+         System.out.println("Back Pressure Data Size: " + dto.getBackPressureDataSizeThreshold());
+         System.out.println("Back Pressure Object Threshold: " + dto.getBackPressureObjectThreshold());
+         System.out.println("Position: " + (dto.getPosition() != null ? "(" + dto.getPosition().getX() + ", " + dto.getPosition().getY() + ")" : "null"));
+         System.out.println("Bends: " + (dto.getBends() != null ? dto.getBends().size() : "null"));
+         System.out.println("Revision Version: " + (connEntity.getRevision() != null ? connEntity.getRevision().getVersion() : "null"));
+         System.out.println("============================\n");
+     }
+
+     public String getAccessToken() {
+         return accessToken;
+     }
 
     public ApiClient getClient() {
         return client;
