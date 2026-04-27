@@ -1,0 +1,34 @@
+name: Sample GenerateFlowFile Pipeline
+description: A simple pipeline that generates flow files with custom content
+parentGroupId: root
+
+processors:
+  - name: GenerateFlowFile
+    type: org.apache.nifi.processors.standard.GenerateFlowFile
+    x: 200
+    y: 100
+    state: RUNNING
+    properties:
+      Data Format: Text
+      File Size: 1KB
+      Text: Hello World from NiFi Test Pipeline
+      Unique FlowFiles: "false"
+
+  - name: LogAttribute
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 500
+    y: 100
+    state: RUNNING
+    properties:
+      Log Level: info
+      Attributes to Ignore: uuid
+      Log Prefix: "Processed: "
+
+connections:
+  - name: Success Relationship
+    sourceId: ${GenerateFlowFile}
+    destinationId: ${LogAttribute}
+    relationships:
+      - success
+    x: 350
+    y: 100

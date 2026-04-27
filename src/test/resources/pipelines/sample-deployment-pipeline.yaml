@@ -1,0 +1,111 @@
+name: Complete Data Processing Pipeline
+description: A comprehensive pipeline demonstrating NiFi deployment with multiple processors and connections
+parentGroupId: root
+
+processors:
+  - name: GenerateData
+    type: org.apache.nifi.processors.standard.GenerateFlowFile
+    x: 100
+    y: 100
+    state: RUNNING
+    properties:
+      Data Format: Text
+      File Size: 1 KB
+      Text: "Sample data for processing - ${UUID()}"
+      Batch Size: "1"
+      Unique FlowFiles: "false"
+
+  - name: ExtractAttributes
+    type: org.apache.nifi.processors.standard.ExtractText
+    x: 400
+    y: 100
+    state: RUNNING
+    properties:
+      "Include Group Name": "true"
+
+  - name: RouteContent
+    type: org.apache.nifi.processors.standard.RouteOnContent
+    x: 700
+    y: 100
+    state: RUNNING
+    properties:
+      "Routing Strategy": "Route to each matching property name"
+
+  - name: LogProcessed
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 1000
+    y: 100
+    state: RUNNING
+    properties:
+      "Log Level": "info"
+      "Attributes to Ignore": "uuid,filename"
+      "Log Prefix": "[Processed] "
+
+  - name: CompressData
+    type: org.apache.nifi.processors.standard.CompressContent
+    x: 1000
+    y: 300
+    state: STOPPED
+    properties:
+      "Compression Format": "gzip"
+      "Mode": "compress"
+
+  - name: PutFile
+    type: org.apache.nifi.processors.standard.PutFile
+    x: 1300
+    y: 200
+    state: STOPPED
+    properties:
+      "Directory": "/tmp/nifi-output"
+      "Conflict Resolution Strategy": "replace"
+      "Create Missing Directories": "true"
+
+connections:
+  - name: Generate to Extract
+    sourceId: ${GenerateData}
+    destinationId: ${ExtractAttributes}
+    relationships:
+      - success
+    x: 250
+    y: 100
+
+  - name: Extract to Route
+    sourceId: ${ExtractAttributes}
+    destinationId: ${RouteContent}
+    relationships:
+      - success
+    x: 550
+    y: 100
+
+  - name: Route to Log
+    sourceId: ${RouteContent}
+    destinationId: ${LogProcessed}
+    relationships:
+      - matched
+    x: 850
+    y: 100
+
+  - name: Route to Compress
+    sourceId: ${RouteContent}
+    destinationId: ${CompressData}
+    relationships:
+      - unmatched
+    x: 850
+    y: 300
+
+  - name: Compress to PutFile
+    sourceId: ${CompressData}
+    destinationId: ${PutFile}
+    relationships:
+      - success
+    x: 1150
+    y: 300
+
+funnels:
+  - name: ErrorHandler
+    x: 700
+    y: 500
+
+  - name: RetryQueue
+    x: 1000
+    y: 500
