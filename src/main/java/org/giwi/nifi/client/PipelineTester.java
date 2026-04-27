@@ -92,7 +92,6 @@ public class PipelineTester {
 
         try {
             ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
-
             String rootGroupId = parentGroupId != null ? parentGroupId : "root";
 
             // Create a new process group for this pipeline
@@ -111,28 +110,21 @@ public class PipelineTester {
             result.setProcessGroupId(newPgId);
             System.out.println("Created process group: " + newPgId);
 
-            // Create processors
-            if (pipelineData.containsKey("processors")) {
-                List<Map<String, Object>> processors = (List<Map<String, Object>>) pipelineData.get("processors");
-                System.out.println("Number of processor entries to create: " + processors.size());
-                for (Map<String, Object> procWrapper : processors) {
-                    // Handle both wrapper format (from converter) and flat format
-                    Map<String, Object> proc = procWrapper;
-                    if (procWrapper.containsKey("processor")) {
-                        proc = (Map<String, Object>) procWrapper.get("processor");
-                    }
-            }
-
-            // Create processors
-            if (pipelineData.containsKey("processors")) {
-                List<Map<String, Object>> processors = (List<Map<String, Object>>) pipelineData.get("processors");
-                for (Map<String, Object> proc : processors) {
-                    ProcessorEntity procEntity = createProcessorEntity(proc, newPgId);
-                    ProcessorEntity created = pgApi.createProcessor(newPgId, procEntity);
-                    String procId = created.getComponent().getId();
-                    processorIdMap.put((String) proc.get("name"), procId);
-                }
-            }
+             // Create processors
+             if (pipelineData.containsKey("processors")) {
+                 List<Map<String, Object>> processors = (List<Map<String, Object>>) pipelineData.get("processors");
+                 System.out.println("Number of processor entries to create: " + processors.size());
+                 for (Map<String, Object> procWrapper : processors) {
+                     ProcessorEntity procEntity = createProcessorEntity(procWrapper, newPgId);
+                     ProcessorEntity created = pgApi.createProcessor(newPgId, procEntity);
+                     String procId = created.getComponent().getId();
+                     Map<String, Object> proc = procWrapper;
+                     if (procWrapper.containsKey("processor")) {
+                         proc = (Map<String, Object>) procWrapper.get("processor");
+                     }
+                     processorIdMap.put((String) proc.get("name"), procId);
+                 }
+             }
 
             // Create funnels
             if (pipelineData.containsKey("funnels")) {
@@ -262,54 +254,86 @@ public class PipelineTester {
         return bundle;
     }
 
-    private ConnectionEntity createConnectionEntity(Map<String, Object> conn, String parentGroupId, Map<String, String> processorIdMap) {
-        // Handle both flat YAML format and converted format
-        Map<String, Object> connMap = conn;
-        if (conn.containsKey("connection")) {
-            connMap = (Map<String, Object>) conn.get("connection");
-        }
+     private ConnectionEntity createConnectionEntity(Map<String, Object> conn, String parentGroupId, Map<String, String> processorIdMap) {
+         // Handle both flat YAML format and converted format
+         Map<String, Object> connMap = conn;
+         if (conn.containsKey("connection")) {
+             connMap = (Map<String, Object>) conn.get("connection");
+         }
 
-        System.out.println("Connection map keys: " + connMap.keySet());
+         System.out.println("Connection map keys: " + connMap.keySet());
 
-        ConnectionEntity entity = new ConnectionEntity();
-        org.giwi.nifi.client.model.ConnectionDTO dto = new org.giwi.nifi.client.model.ConnectionDTO();
+         ConnectionEntity entity = new ConnectionEntity();
+         org.giwi.nifi.client.model.ConnectionDTO dto = new org.giwi.nifi.client.model.ConnectionDTO();
 
-        dto.setParentGroupId(parentGroupId);
+         dto.setParentGroupId(parentGroupId);
 
-        // Resolve source and destination IDs
-        String sourceName = extractIdFromRef((String) connMap.get("sourceId"));
-        String destName = extractIdFromRef((String) connMap.get("destinationId"));
+         // Resolve source and destination IDs
+         String sourceName = extractIdFromRef((String) connMap.get("sourceId"));
+         String destName = extractIdFromRef((String) connMap.get("destinationId"));
 
-        String sourceId = processorIdMap.getOrDefault(sourceName, sourceName);
-        String destId = processorIdMap.getOrDefault(destName, destName);
+         String sourceId = processorIdMap.getOrDefault(sourceName, sourceName);
+         String destId = processorIdMap.getOrDefault(destName, destName);
 
-        System.out.println("Creating connection: " + connMap.get("name"));
-        System.out.println("  Source: " + sourceName + " -> " + sourceId);
-        System.out.println("  Dest: " + destName + " -> " + destId);
+         System.out.println("Creating connection: " + connMap.get("name"));
+         System.out.println("  Source: " + sourceName + " -> " + sourceId);
+         System.out.println("  Dest: " + destName + " -> " + destId);
 
-        ConnectableDTO source = new ConnectableDTO();
-        source.setId(sourceId);
-        source.setType(ConnectableDTO.TypeEnum.PROCESSOR);
-        dto.setSource(source);
+         ConnectableDTO source = new ConnectableDTO();
+         source.setId(sourceId);
+         source.setType(ConnectableDTO.TypeEnum.PROCESSOR);
+         dto.setSource(source);
 
-        ConnectableDTO dest = new ConnectableDTO();
-        dest.setId(destId);
-        dest.setType(ConnectableDTO.TypeEnum.PROCESSOR);
-        dto.setDestination(dest);
+         ConnectableDTO dest = new ConnectableDTO();
+         dest.setId(destId);
+         dest.setType(ConnectableDTO.TypeEnum.PROCESSOR);
+         dto.setDestination(dest);
 
-        // Set relationships
-        if (connMap.containsKey("selectedRelationships")) {
-            List<String> rels = (List<String>) connMap.get("selectedRelationships");
-            dto.setSelectedRelationships(new java.util.LinkedHashSet<>(rels));
-        }
+         // Set relationships
+         if (connMap.containsKey("selectedRelationships")) {
+             List<String> rels = (List<String>) connMap.get("selectedRelationships");
+             dto.setSelectedRelationships(new java.util.LinkedHashSet<>(rels));
+         }
 
-        RevisionDTO revision = new RevisionDTO();
-        revision.setVersion(0L);
-        entity.setRevision(revision);
-        entity.setComponent(dto);
+         // Set optional connection properties from converter
+         if (connMap.containsKey("name")) {
+             dto.setName((String) connMap.get("name"));
+         }
+         if (connMap.containsKey("flowFileExpiration")) {
+             dto.setFlowFileExpiration((String) connMap.get("flowFileExpiration"));
+         }
+         if (connMap.containsKey("backPressureDataSizeThreshold")) {
+             dto.setBackPressureDataSizeThreshold((String) connMap.get("backPressureDataSizeThreshold"));
+         }
+         if (connMap.containsKey("backPressureObjectThreshold")) {
+             Object threshold = connMap.get("backPressureObjectThreshold");
+             if (threshold != null) {
+                 if (threshold instanceof Number) {
+                     dto.setBackPressureObjectThreshold(((Number) threshold).longValue());
+                 } else {
+                     try {
+                         dto.setBackPressureObjectThreshold(Long.parseLong(threshold.toString()));
+                     } catch (NumberFormatException e) {
+                         System.out.println("Warning: Invalid backPressureObjectThreshold value: " + threshold);
+                     }
+                 }
+             }
+         }
+         if (connMap.containsKey("position")) {
+             Map<String, Object> posMap = (Map<String, Object>) connMap.get("position");
+             PositionDTO pos = new PositionDTO();
+             pos.setX(((Number) posMap.getOrDefault("x", 0)).doubleValue());
+             pos.setY(((Number) posMap.getOrDefault("y", 0)).doubleValue());
+             dto.setPosition(pos);
+         }
 
-        return entity;
-    }
+         RevisionDTO revision = new RevisionDTO();
+         revision.setVersion(0L);
+         entity.setRevision(revision);
+         entity.setComponent(dto);
+
+         return entity;
+     }
 
     private String extractIdFromRef(String ref) {
         if (ref != null && ref.startsWith("${") && ref.endsWith("}")) {
