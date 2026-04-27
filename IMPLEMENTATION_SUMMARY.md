@@ -1,0 +1,266 @@
+# NiFi Pipeline Deployment Java Client - Implementation Summary
+
+## Overview
+
+This project provides a Java client library for deploying Apache NiFi pipelines programmatically using the REST API. It includes YAML-based pipeline definitions and automatic processor bundle configuration.
+
+## Completed Features
+
+### 1. **API Client Generation**
+- Auto-generated REST client from NiFi OpenAPI 2.9.0 specification
+- Models for ProcessorDTO, ConnectionDTO, ProcessGroupDTO, etc.
+- ApiClient with custom TrustManager for self-signed HTTPS certificates
+
+### 2. **YAML Pipeline Converter**
+- Converts YAML pipeline definitions to internal NiFi API format
+- Supports processors, connections, funnels, ports, process groups, and remote process groups
+- Automatic UUID generation for entities
+- Default values for optional fields
+
+### 3. **Pipeline Deployment**
+- `PipelineTester` class for pipeline deployment and management
+- Support for multiple constructor patterns:
+  - URL-based: `new PipelineTester(url, username, password)`
+  - Annotation-based: `new PipelineTester(testClass)` with `@NiFiConnection` annotation
+- Login and token management with Bearer authentication
+
+### 4. **Processor Creation**
+- Automatic bundle detection based on processor type
+- Position support (x, y coordinates)
+- Property configuration via YAML
+- Correct ProcessorDTO formation with bundle information
+
+### 5. **Connection Creation**
+- Source and destination resolution from processor names
+- Relationship configuration
+- Connection properties (flowFileExpiration, backPressure settings)
+- Position information for visual layout
+
+### 6. **Process Group Management**
+- Create nested process groups
+- Support for parent group IDs
+- Proper hierarchy management
+
+## Code Architecture
+
+```
+src/main/java/org/giwi/nifi/client/
+├── PipelineTester.java              # Main deployment orchestrator
+├── PipelineConverter.java           # YAML to API format conversion
+├── NiFiConnection.java              # Configuration annotation
+├── api/                             # Auto-generated API clients
+│   ├── ProcessGroupsApi.java
+│   ├── ProcessorsApi.java
+│   ├── ConnectionsApi.java
+│   ├── AccessApi.java
+│   └── ...
+├── model/                           # Auto-generated DTOs
+│   ├── ProcessorDTO.java
+│   ├── ConnectionDTO.java
+│   ├── ProcessGroupDTO.java
+│   └── ...
+└── invoker/
+    └── ApiClient.java               # REST client with SSL config
+```
+
+## Key Implementation Details
+
+### SSL/HTTPS Configuration (ApiClient.buildRestTemplate)
+- Disables SSL certificate validation for self-signed certs
+- Required because NiFi uses self-signed certificates on port 8443
+- Custom TrustManager that trusts all certificates
+
+### Processor Bundle Resolution (getBundleForProcessorType)
+- Jolt processors: `nifi-jolt-nar`
+- JSON processors: `nifi-json-nar`
+- Standard/default: `nifi-standard-nar`
+- Group: `org.apache.nifi`
+- Version: `2.9.0`
+
+### Processor ID Mapping
+- Processor names from YAML are mapped to actual NiFi processor IDs
+- Used for connection source/destination resolution
+- Map built during processor creation phase
+
+### Connection Entity Creation
+- Properly unwraps wrapper format from converter
+- Sets all required fields on ConnectionDTO
+- Handles type conversion for numeric thresholds
+- Configures ConnectableDTO objects with proper types
+
+## YAML Format
+
+### Basic Structure
+```yaml
+name: Pipeline Name
+parentGroupId: root
+
+processors:
+  - name: ProcessorName
+    type: org.apache.nifi.processors.standard.ProcessorType
+    x: 100
+    y: 100
+    properties:
+      Property1: value1
+      Property2: value2
+
+connections:
+  - name: ConnectionName
+    sourceId: ${SourceProcessorName}
+    destinationId: ${DestProcessorName}
+    relationships:
+      - success
+    x: 150
+    y: 100
+
+funnels:
+  - name: FunnelName
+    x: 200
+    y: 200
+```
+
+### Variable Resolution
+- Processor references use template syntax: `${ProcessorName}`
+- Resolved to actual processor IDs during deployment
+- Allows YAML to be human-readable while maintaining proper linking
+
+## Testing
+
+### Unit Tests
+- PipelineConverterTest: YAML conversion logic
+- Tests for processors, connections, ports, process groups, funnels
+
+### Integration Tests
+- NiFiIntegrationTest: End-to-end deployment
+- Requires NiFi server running at https://localhost:8443
+- Credentials: admin / admin1234567
+- Tests process group creation, processor deployment, and cleanup
+
+### Test Pipelines
+- `sample-generate-pipeline.yaml`: Single processor test
+- `sample-deployment-pipeline.yaml`: Complex pipeline with 6 processors and connections
+
+See TESTING_GUIDE.md for detailed testing instructions.
+
+## Deployment Flow
+
+```
+1. Load YAML File
+   ↓
+2. Convert YAML to API Format (PipelineConverter)
+   ↓
+3. Create Process Group
+   ↓
+4. Create Processors (in order)
+   ├── Store processor name → ID mapping
+   └── Set bundle, position, properties
+   ↓
+5. Create Connections
+   ├── Resolve source/destination IDs
+   ├── Configure relationships
+   └── Set connection properties
+   ↓
+6. Create Funnels (if needed)
+   ↓
+7. Return Result with Process Group ID
+```
+
+## Error Handling
+
+Current implementation:
+- Basic try-catch with result status
+- Error message returned to caller
+- Stack trace printed to console
+
+Recommended improvements:
+- Specific exception types for different failures
+- Retry logic for transient failures
+- Detailed validation before API calls
+- Rollback on partial failure
+
+## Known Limitations
+
+1. **deleteProcessGroup()** - Currently mocked (returns true without deletion)
+2. **Process Group Cleanup** - No automatic cleanup on failure
+3. **Connection Bends** - Not yet supported (uses empty list)
+4. **Load Balancing** - Load balance strategy fields not yet configured
+5. **Prioritizers** - Connection prioritizers not yet implemented
+6. **Versioned Components** - versioned component IDs not yet handled
+
+## Next Steps
+
+### Short Term
+1. ✅ Fix Java compilation (Java 26-ea compatibility)
+2. ✅ Improve connection creation with all fields
+3. ⏳ Test with actual NiFi server
+4. Test connection creation and verify it doesn't return 500 error
+
+### Medium Term
+1. Implement proper deleteProcessGroup()
+2. Add support for nested process groups
+3. Add error recovery and rollback logic
+4. Support for input/output ports
+5. Remote process group support
+
+### Long Term
+1. Template management
+2. Versioning and snapshots
+3. Pipeline validation before deployment
+4. Performance optimization for large pipelines
+5. WebSocket support for real-time updates
+
+## Dependencies
+
+- Spring Boot 3.4.1 (Web, JSON)
+- Jackson (YAML, JSR310, Nullable)
+- OpenAPI Generator 7.14.0
+- JUnit 5
+- Gradle 9.4.1+
+- Java 21+ (tested with 26-ea)
+
+## Building
+
+```bash
+# Build
+./gradlew build
+
+# Run tests
+./gradlew test
+
+# Run specific test
+./gradlew test --tests "NiFiIntegrationTest.testDeployPipeline"
+
+# Build JAR
+./gradlew jar
+```
+
+## Usage Example
+
+```java
+// Create tester with annotation
+@NiFiConnection(url = "https://localhost:8443/nifi-api", user = "admin", password = "admin1234567")
+class MyTest {
+    
+    @Test
+    void deployPipeline() throws Exception {
+        PipelineTester tester = new PipelineTester(getClass());
+        
+        PipelineTesterResult result = tester.deployPipeline(
+            new File("pipeline.yaml"),
+            "root"
+        );
+        
+        if (result.isSuccess()) {
+            System.out.println("Deployed: " + result.getProcessGroupId());
+        } else {
+            System.out.println("Failed: " + result.getMessage());
+        }
+    }
+}
+```
+
+## Documentation Files
+
+- `README.md`: Project overview and quick start
+- `TESTING_GUIDE.md`: NiFi setup and testing procedures
+- `IMPLEMENTATION_SUMMARY.md` (this file): Detailed implementation information
