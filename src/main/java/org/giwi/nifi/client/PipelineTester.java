@@ -96,7 +96,6 @@ public class PipelineTester {
         return deployPipeline(yamlFile, "root");
     }
 
-    @SuppressWarnings("unchecked")
     public PipelineTesterResult deployPipeline(File yamlFile, String parentGroupId) throws IOException {
         Map<String, Object> pipelineData = converter.convertFromYaml(yamlFile);
         if (parentGroupId != null) {
@@ -126,6 +125,7 @@ public class PipelineTester {
             pgEntity.setComponent(pgDto);
 
             ProcessGroupEntity createdPg = pgApi.createProcessGroup(rootGroupId, pgEntity, null);
+            assert createdPg.getComponent() != null;
             String newPgId = createdPg.getComponent().getId();
             result.setProcessGroupId(newPgId);
             System.out.println("Created process group: " + newPgId);
@@ -137,6 +137,7 @@ public class PipelineTester {
                 for (Map<String, Object> procWrapper : processors) {
                     ProcessorEntity procEntity = createProcessorEntity(procWrapper, newPgId);
                     ProcessorEntity created = pgApi.createProcessor(newPgId, procEntity);
+                    assert created.getComponent() != null;
                     String procId = created.getComponent().getId();
                     Map<String, Object> proc = procWrapper;
                     if (procWrapper.containsKey("processor")) {
@@ -260,6 +261,7 @@ public class PipelineTester {
 
                     // Update revision
                     procEntity.getComponent().setConfig(procDTO.getConfig());
+                    assert procEntity.getRevision() != null;
                     procEntity.getRevision().setVersion(procEntity.getRevision().getVersion());
 
                     procApi.updateProcessor(procId, procEntity);
@@ -312,6 +314,7 @@ public class PipelineTester {
                 props.put(entry.getKey(), String.valueOf(entry.getValue()));
             }
             dto.setConfig(new org.giwi.nifi.client.model.ProcessorConfigDTO());
+            assert dto.getConfig() != null;
             dto.getConfig().setProperties(props);
         } else {
             dto.setConfig(new org.giwi.nifi.client.model.ProcessorConfigDTO());
@@ -319,20 +322,24 @@ public class PipelineTester {
 
         // Set scheduling properties
         if (dtoMap.containsKey("schedulingStrategy")) {
+            assert dto.getConfig() != null;
             dto.getConfig().setSchedulingStrategy((String) dtoMap.get("schedulingStrategy"));
         }
         if (dtoMap.containsKey("schedulingPeriod")) {
+            assert dto.getConfig() != null;
             dto.getConfig().setSchedulingPeriod((String) dtoMap.get("schedulingPeriod"));
         }
         if (dtoMap.containsKey("concurrentlySchedulableTaskCount")) {
             Object count = dtoMap.get("concurrentlySchedulableTaskCount");
             if (count instanceof Number) {
+                assert dto.getConfig() != null;
                 dto.getConfig().setConcurrentlySchedulableTaskCount(((Number) count).intValue());
             }
         }
         if (dtoMap.containsKey("runDurationMillis")) {
             Object duration = dtoMap.get("runDurationMillis");
             if (duration instanceof Number) {
+                assert dto.getConfig() != null;
                 dto.getConfig().setRunDurationMillis(((Number) duration).longValue());
             }
         }
@@ -340,6 +347,7 @@ public class PipelineTester {
         // Set auto-terminated relationships
         if (dtoMap.containsKey("autoTerminatedRelationships")) {
             List<String> rels = (List<String>) dtoMap.get("autoTerminatedRelationships");
+            assert dto.getConfig() != null;
             dto.getConfig().setAutoTerminatedRelationships(new java.util.LinkedHashSet<>(rels));
         }
 
@@ -493,6 +501,7 @@ public class PipelineTester {
     private void debugConnectionEntity(ConnectionEntity connEntity) {
         System.out.println("\n=== Connection Entity Debug ===");
         org.giwi.nifi.client.model.ConnectionDTO dto = connEntity.getComponent();
+        assert dto != null;
         System.out.println("Parent Group ID: " + dto.getParentGroupId());
         System.out.println("Name: " + dto.getName());
         if (dto.getSource() != null) {
@@ -529,6 +538,7 @@ public class PipelineTester {
         ProcessorsEntity processors = pgApi.getProcessors(processGroupId, false);
         if (processors.getProcessors() != null) {
             for (ProcessorEntity proc : processors.getProcessors()) {
+                assert proc.getComponent() != null;
                 if (processorName.equals(proc.getComponent().getName())) {
                     return proc.getComponent().getId();
                 }
@@ -588,6 +598,7 @@ public class PipelineTester {
         InputPortsEntity ports = pgApi.getInputPorts(processGroupId);
         if (ports.getInputPorts() != null) {
             for (org.giwi.nifi.client.model.PortEntity port : ports.getInputPorts()) {
+                assert port.getComponent() != null;
                 if (portName.equals(port.getComponent().getName())) {
                     return port.getComponent().getId();
                 }
@@ -604,6 +615,7 @@ public class PipelineTester {
         OutputPortsEntity ports = pgApi.getOutputPorts(processGroupId);
         if (ports.getOutputPorts() != null) {
             for (org.giwi.nifi.client.model.PortEntity port : ports.getOutputPorts()) {
+                assert port.getComponent() != null;
                 if (portName.equals(port.getComponent().getName())) {
                     return port.getComponent().getId();
                 }
@@ -650,6 +662,7 @@ public class PipelineTester {
     public void startProcessor(String processorId) throws Exception {
         ProcessorsApi procApi = new ProcessorsApi(client);
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
+        assert procEntity.getComponent() != null;
         procEntity.getComponent().setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.RUNNING);
         procApi.updateProcessor(processorId, procEntity);
     }
@@ -660,6 +673,7 @@ public class PipelineTester {
     public void stopProcessor(String processorId) throws Exception {
         ProcessorsApi procApi = new ProcessorsApi(client);
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
+        assert procEntity.getComponent() != null;
         procEntity.getComponent().setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.STOPPED);
         procApi.updateProcessor(processorId, procEntity);
     }

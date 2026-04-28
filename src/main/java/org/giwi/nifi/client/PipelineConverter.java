@@ -37,7 +37,7 @@ public class PipelineConverter {
      * @throws IOException if the file cannot be read or parsed
      */
     public Map<String, Object> convertFromYaml(File yamlFile) throws IOException {
-        Map<String, Object> yaml = mapper.readValue(yamlFile, new TypeReference<Map<String, Object>>() {
+        Map<String, Object> yaml = mapper.readValue(yamlFile, new TypeReference<>() {
         });
         return convertFromMap(yaml);
     }
