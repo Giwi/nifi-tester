@@ -100,7 +100,6 @@ public class PipelineConverter {
      * @param processors List of processor maps from YAML
      * @return List of processor entities in NiFi API format
      */
-    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> convertProcessors(List<Map<String, Object>> processors) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (processors == null) return result;
@@ -153,7 +152,6 @@ public class PipelineConverter {
         }
         return result;
     }
-
     /**
      * Converts connection list from YAML format to NiFi API format.
      * Handles selected relationships, flow file expiration, and back pressure settings.
@@ -161,14 +159,6 @@ public class PipelineConverter {
      * @param connections List of connection maps from YAML
      * @return List of connection entities in NiFi API format
      */
-    /**
-     * Converts connection list from YAML format to NiFi API format.
-     * Handles selected relationships, flow file expiration, and back pressure settings.
-     *
-     * @param connections List of connection maps from YAML
-     * @return List of connection entities in NiFi API format
-     */
-    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> convertConnections(List<Map<String, Object>> connections) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (connections == null) return result;
@@ -214,7 +204,6 @@ public class PipelineConverter {
      * @param ports List of input port maps from YAML
      * @return List of input port entities in NiFi API format
      */
-    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> convertInputPorts(List<Map<String, Object>> ports) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (ports == null) return result;
@@ -250,7 +239,6 @@ public class PipelineConverter {
      * @param ports List of output port maps from YAML
      * @return List of output port entities in NiFi API format
      */
-    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> convertOutputPorts(List<Map<String, Object>> ports) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (ports == null) return result;
@@ -286,7 +274,6 @@ public class PipelineConverter {
      * @param groups List of process group maps from YAML
      * @return List of process group entities in NiFi API format
      */
-    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> convertProcessGroups(List<Map<String, Object>> groups) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (groups == null) return result;
@@ -320,7 +307,6 @@ public class PipelineConverter {
      * @param groups List of remote process group maps from YAML
      * @return List of remote process group entities in NiFi API format
      */
-    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> convertRemoteProcessGroups(List<Map<String, Object>> groups) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (groups == null) return result;
@@ -351,7 +337,6 @@ public class PipelineConverter {
      * @param funnels List of funnel maps from YAML
      * @return List of funnel entities in NiFi API format
      */
-    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> convertFunnels(List<Map<String, Object>> funnels) {
         List<Map<String, Object>> result = new ArrayList<>();
         if (funnels == null) return result;
