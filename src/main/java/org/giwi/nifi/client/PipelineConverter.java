@@ -78,6 +78,25 @@ public class PipelineConverter {
             dto.put("name", getString(proc, "name"));
             dto.put("state", getString(proc, "state", "STOPPED"));
 
+            // Scheduling properties
+            if (proc.containsKey("schedulingStrategy")) {
+                dto.put("schedulingStrategy", getString(proc, "schedulingStrategy"));
+            }
+            if (proc.containsKey("schedulingPeriod")) {
+                dto.put("schedulingPeriod", getString(proc, "schedulingPeriod"));
+            }
+            if (proc.containsKey("concurrentlySchedulableTaskCount")) {
+                dto.put("concurrentlySchedulableTaskCount", proc.get("concurrentlySchedulableTaskCount"));
+            }
+            if (proc.containsKey("runDurationMillis")) {
+                dto.put("runDurationMillis", proc.get("runDurationMillis"));
+            }
+
+            // Auto-terminated relationships
+            if (proc.containsKey("autoTerminatedRelationships")) {
+                dto.put("autoTerminatedRelationships", proc.get("autoTerminatedRelationships"));
+            }
+
             Map<String, Object> pos = new HashMap<>();
             pos.put("x", getDouble(proc, "x", 0.0));
             pos.put("y", getDouble(proc, "y", 0.0));

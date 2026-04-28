@@ -75,9 +75,10 @@ class NiFiIntegrationTest {
 
             System.out.println("Comprehensive pipeline deployed with multiple processors and connections");
             System.out.println("Pipeline ID: " + pgId);
+            System.out.println("Message: " + result.getMessage());
 
             // Cleanup - uncomment to delete after inspection
-            // tester.deleteProcessGroup(pgId);
+             tester.deleteProcessGroup(pgId);
         }
     }
 }

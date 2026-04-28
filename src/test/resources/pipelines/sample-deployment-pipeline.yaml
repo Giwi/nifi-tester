@@ -8,6 +8,9 @@ processors:
     x: 100
     y: 100
     state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "10 sec"
+    concurrentlySchedulableTaskCount: 1
     properties:
       Data Format: Text
       File Size: 1 KB
@@ -20,6 +23,8 @@ processors:
     x: 400
     y: 100
     state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "5 sec"
     properties:
       "Include Group Name": "true"
 
@@ -28,24 +33,36 @@ processors:
     x: 700
     y: 100
     state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "3 sec"
     properties:
       "Routing Strategy": "Route to each matching property name"
+    # Auto-terminate failure relationship if not connected
+    autoTerminatedRelationships:
+      - failure
 
   - name: LogProcessed
     type: org.apache.nifi.processors.standard.LogAttribute
     x: 1000
     y: 100
     state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 sec"
     properties:
       "Log Level": "info"
       "Attributes to Ignore": "uuid,filename"
       "Log Prefix": "[Processed] "
+    # Auto-terminate success since it's the end of this path
+    autoTerminatedRelationships:
+      - success
 
   - name: CompressData
     type: org.apache.nifi.processors.standard.CompressContent
     x: 1000
     y: 300
     state: STOPPED
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "30 sec"
     properties:
       "Compression Format": "gzip"
       "Mode": "compress"
@@ -55,10 +72,16 @@ processors:
     x: 1300
     y: 200
     state: STOPPED
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "60 sec"
     properties:
       "Directory": "/tmp/nifi-output"
       "Conflict Resolution Strategy": "replace"
       "Create Missing Directories": "true"
+    # Auto-terminate relationships since it's the end of the pipeline
+    autoTerminatedRelationships:
+      - success
+      - failure
 
 connections:
   - name: Generate to Extract

@@ -12,17 +12,27 @@ import java.util.UUID;
 
 import org.giwi.nifi.client.api.AccessApi;
 import org.giwi.nifi.client.api.ConnectionsApi;
+import org.giwi.nifi.client.api.FlowApi;
+import org.giwi.nifi.client.api.FlowFileQueuesApi;
 import org.giwi.nifi.client.api.FunnelsApi;
+import org.giwi.nifi.client.api.InputPortsApi;
+import org.giwi.nifi.client.api.OutputPortsApi;
 import org.giwi.nifi.client.api.ProcessGroupsApi;
 import org.giwi.nifi.client.api.ProcessorsApi;
 import org.giwi.nifi.client.invoker.ApiClient;
 import org.giwi.nifi.client.model.BundleDTO;
 import org.giwi.nifi.client.model.ConnectionEntity;
+import org.giwi.nifi.client.model.ConnectionsEntity;
 import org.giwi.nifi.client.model.ConnectableDTO;
+import org.giwi.nifi.client.model.FlowFileSummaryDTO;
 import org.giwi.nifi.client.model.FunnelEntity;
+import org.giwi.nifi.client.model.InputPortsEntity;
+import org.giwi.nifi.client.model.ListingRequestEntity;
+import org.giwi.nifi.client.model.OutputPortsEntity;
 import org.giwi.nifi.client.model.PositionDTO;
 import org.giwi.nifi.client.model.ProcessGroupEntity;
 import org.giwi.nifi.client.model.ProcessorEntity;
+import org.giwi.nifi.client.model.ProcessorsEntity;
 import org.giwi.nifi.client.model.RevisionDTO;
 import org.giwi.nifi.client.NiFiConnection;
 
@@ -145,22 +155,25 @@ public class PipelineTester {
                 }
             }
 
-            // Create connections
-             if (pipelineData.containsKey("connections")) {
-                 List<Map<String, Object>> connections = (List<Map<String, Object>>) pipelineData.get("connections");
-                 for (Map<String, Object> connWrapper : connections) {
-                     // Handle both wrapper format (from converter) and flat format
-                     Map<String, Object> conn = connWrapper;
-                     if (connWrapper.containsKey("connection")) {
-                         conn = (Map<String, Object>) connWrapper.get("connection");
-                     }
-                     ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
-                     if (connEntity != null) {
-                         debugConnectionEntity(connEntity);
-                         pgApi.createConnection(newPgId, connEntity);
-                     }
-                 }
-             }
+             // Create connections
+              if (pipelineData.containsKey("connections")) {
+                  List<Map<String, Object>> connections = (List<Map<String, Object>>) pipelineData.get("connections");
+                  for (Map<String, Object> connWrapper : connections) {
+                      // Handle both wrapper format (from converter) and flat format
+                      Map<String, Object> conn = connWrapper;
+                      if (connWrapper.containsKey("connection")) {
+                          conn = (Map<String, Object>) connWrapper.get("connection");
+                      }
+                      ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
+                      if (connEntity != null) {
+                          debugConnectionEntity(connEntity);
+                          pgApi.createConnection(newPgId, connEntity);
+                      }
+                  }
+              }
+
+             // Auto-terminate unconnected relationships
+             autoTerminateUnconnectedRelationships(pgApi, newPgId, processorIdMap, pipelineData);
 
             result.setSuccess(true);
             result.setMessage("Pipeline deployed successfully: " + newPgId);
@@ -215,6 +228,40 @@ public class PipelineTester {
             }
             dto.setConfig(new org.giwi.nifi.client.model.ProcessorConfigDTO());
             dto.getConfig().setProperties(props);
+        } else {
+            dto.setConfig(new org.giwi.nifi.client.model.ProcessorConfigDTO());
+        }
+
+        // Set scheduling properties
+        if (dtoMap.containsKey("schedulingStrategy")) {
+            dto.getConfig().setSchedulingStrategy((String) dtoMap.get("schedulingStrategy"));
+        }
+        if (dtoMap.containsKey("schedulingPeriod")) {
+            dto.getConfig().setSchedulingPeriod((String) dtoMap.get("schedulingPeriod"));
+        }
+        if (dtoMap.containsKey("concurrentlySchedulableTaskCount")) {
+            Object count = dtoMap.get("concurrentlySchedulableTaskCount");
+            if (count instanceof Number) {
+                dto.getConfig().setConcurrentlySchedulableTaskCount(((Number) count).intValue());
+            }
+        }
+        if (dtoMap.containsKey("runDurationMillis")) {
+            Object duration = dtoMap.get("runDurationMillis");
+            if (duration instanceof Number) {
+                dto.getConfig().setRunDurationMillis(((Number) duration).longValue());
+            }
+        }
+
+        // Set auto-terminated relationships
+        if (dtoMap.containsKey("autoTerminatedRelationships")) {
+            List<String> rels = (List<String>) dtoMap.get("autoTerminatedRelationships");
+            dto.getConfig().setAutoTerminatedRelationships(new java.util.LinkedHashSet<>(rels));
+        }
+
+        // Set state
+        if (dtoMap.containsKey("state")) {
+            String stateStr = (String) dtoMap.get("state");
+            dto.setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.fromValue(stateStr));
         }
 
         RevisionDTO revision = new RevisionDTO();
@@ -280,15 +327,17 @@ public class PipelineTester {
          System.out.println("  Source: " + sourceName + " -> " + sourceId);
          System.out.println("  Dest: " + destName + " -> " + destId);
 
-         ConnectableDTO source = new ConnectableDTO();
-         source.setId(sourceId);
-         source.setType(ConnectableDTO.TypeEnum.PROCESSOR);
-         dto.setSource(source);
+          ConnectableDTO source = new ConnectableDTO();
+          source.setId(sourceId);
+          source.setType(ConnectableDTO.TypeEnum.PROCESSOR);
+          source.setGroupId(parentGroupId);
+          dto.setSource(source);
 
-         ConnectableDTO dest = new ConnectableDTO();
-         dest.setId(destId);
-         dest.setType(ConnectableDTO.TypeEnum.PROCESSOR);
-         dto.setDestination(dest);
+          ConnectableDTO dest = new ConnectableDTO();
+          dest.setId(destId);
+          dest.setType(ConnectableDTO.TypeEnum.PROCESSOR);
+          dest.setGroupId(parentGroupId);
+          dto.setDestination(dest);
 
          // Set relationships
          if (connMap.containsKey("selectedRelationships")) {
@@ -385,9 +434,316 @@ public class PipelineTester {
          return accessToken;
      }
 
-    public ApiClient getClient() {
-        return client;
+    // ==================== TESTING UTILITIES ====================
+
+    /**
+     * Find a processor ID by its name in a process group
+     */
+    public String findProcessorIdByName(String processGroupId, String processorName) throws Exception {
+        ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
+        ProcessorsEntity processors = pgApi.getProcessors(processGroupId, false);
+        if (processors.getProcessors() != null) {
+            for (ProcessorEntity proc : processors.getProcessors()) {
+                if (processorName.equals(proc.getComponent().getName())) {
+                    return proc.getComponent().getId();
+                }
+            }
+        }
+        return null;
     }
+
+    /**
+     * Find a connection ID by source and destination names
+     */
+    public String findConnectionId(String processGroupId, String sourceName, String destName) throws Exception {
+        ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
+        ConnectionsEntity connections = pgApi.getConnections(processGroupId);
+        if (connections.getConnections() != null) {
+            String sourceId = findProcessorIdByName(processGroupId, sourceName);
+            String destId = findProcessorIdByName(processGroupId, destName);
+            for (org.giwi.nifi.client.model.ConnectionEntity conn : connections.getConnections()) {
+                if (conn.getComponent() != null) {
+                    org.giwi.nifi.client.model.ConnectableDTO src = conn.getComponent().getSource();
+                    org.giwi.nifi.client.model.ConnectableDTO dst = conn.getComponent().getDestination();
+                    if (src != null && dst != null &&
+                        src.getId().equals(sourceId) && dst.getId().equals(destId)) {
+                        return conn.getComponent().getId();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get all connection IDs for a processor (as source)
+     */
+    public List<String> getConnectionIdsForProcessor(String processGroupId, String processorName) throws Exception {
+        List<String> result = new ArrayList<>();
+        ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
+        ConnectionsEntity connections = pgApi.getConnections(processGroupId);
+        String procId = findProcessorIdByName(processGroupId, processorName);
+        if (connections.getConnections() != null && procId != null) {
+            for (org.giwi.nifi.client.model.ConnectionEntity conn : connections.getConnections()) {
+                if (conn.getComponent() != null && conn.getComponent().getSource() != null) {
+                    if (procId.equals(conn.getComponent().getSource().getId())) {
+                        result.add(conn.getId());
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Find an input port ID by name
+     */
+    public String findInputPortIdByName(String processGroupId, String portName) throws Exception {
+        ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
+        InputPortsEntity ports = pgApi.getInputPorts(processGroupId);
+        if (ports.getInputPorts() != null) {
+            for (org.giwi.nifi.client.model.PortEntity port : ports.getInputPorts()) {
+                if (portName.equals(port.getComponent().getName())) {
+                    return port.getComponent().getId();
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find an output port ID by name
+     */
+    public String findOutputPortIdByName(String processGroupId, String portName) throws Exception {
+        ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
+        OutputPortsEntity ports = pgApi.getOutputPorts(processGroupId);
+        if (ports.getOutputPorts() != null) {
+            for (org.giwi.nifi.client.model.PortEntity port : ports.getOutputPorts()) {
+                if (portName.equals(port.getComponent().getName())) {
+                    return port.getComponent().getId();
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Update processor properties for testing (e.g., set custom text in GenerateFlowFile)
+     */
+    public void updateProcessorProperties(String processorId, Map<String, String> properties) throws Exception {
+        ProcessorsApi procApi = new ProcessorsApi(client);
+        ProcessorEntity procEntity = procApi.getProcessor(processorId);
+        if (procEntity.getComponent() != null) {
+            org.giwi.nifi.client.model.ProcessorConfigDTO config = procEntity.getComponent().getConfig();
+            if (config == null) {
+                config = new org.giwi.nifi.client.model.ProcessorConfigDTO();
+            }
+            Map<String, String> currentProps = config.getProperties();
+            if (currentProps == null) {
+                currentProps = new HashMap<>();
+            }
+            currentProps.putAll(properties);
+            config.setProperties(currentProps);
+            procEntity.getComponent().setConfig(config);
+            procApi.updateProcessor(processorId, procEntity);
+        }
+    }
+
+    /**
+     * Set the text content for a GenerateFlowFile processor
+     */
+    public void setGenerateFlowFileText(String processorId, String text) throws Exception {
+        Map<String, String> props = new HashMap<>();
+        props.put("Text", text);
+        props.put("Data Format", "Text");
+        updateProcessorProperties(processorId, props);
+    }
+
+    /**
+     * Start a processor
+     */
+    public void startProcessor(String processorId) throws Exception {
+        ProcessorsApi procApi = new ProcessorsApi(client);
+        ProcessorEntity procEntity = procApi.getProcessor(processorId);
+        procEntity.getComponent().setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.RUNNING);
+        procApi.updateProcessor(processorId, procEntity);
+    }
+
+    /**
+     * Stop a processor
+     */
+    public void stopProcessor(String processorId) throws Exception {
+        ProcessorsApi procApi = new ProcessorsApi(client);
+        ProcessorEntity procEntity = procApi.getProcessor(processorId);
+        procEntity.getComponent().setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.STOPPED);
+        procApi.updateProcessor(processorId, procEntity);
+    }
+
+    /**
+     * Start all processors in a process group
+     */
+    public void startProcessGroup(String processGroupId) throws Exception {
+        FlowApi flowApi = new FlowApi(client);
+        org.giwi.nifi.client.model.ScheduleComponentsEntity schedule = new org.giwi.nifi.client.model.ScheduleComponentsEntity();
+        schedule.setState(org.giwi.nifi.client.model.ScheduleComponentsEntity.StateEnum.RUNNING);
+        schedule.setId(processGroupId);
+        flowApi.scheduleComponents(processGroupId, schedule);
+    }
+
+    /**
+     * Stop all processors in a process group
+     */
+    public void stopProcessGroup(String processGroupId) throws Exception {
+        FlowApi flowApi = new FlowApi(client);
+        org.giwi.nifi.client.model.ScheduleComponentsEntity schedule = new org.giwi.nifi.client.model.ScheduleComponentsEntity();
+        schedule.setState(org.giwi.nifi.client.model.ScheduleComponentsEntity.StateEnum.STOPPED);
+        schedule.setId(processGroupId);
+        flowApi.scheduleComponents(processGroupId, schedule);
+    }
+
+    /**
+     * Wait for a processor to be idle (no active threads)
+     */
+    public boolean waitForProcessorIdle(String processorId, long timeoutMs) throws Exception {
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            FlowApi flowApi = new FlowApi(client);
+            org.giwi.nifi.client.model.ProcessorStatusEntity status = flowApi.getProcessorStatus(processorId, null, null);
+            if (status.getProcessorStatus() != null && status.getProcessorStatus().getAggregateSnapshot() != null) {
+                Integer activeThreads = status.getProcessorStatus().getAggregateSnapshot().getActiveThreadCount();
+                if (activeThreads != null && activeThreads == 0) {
+                    return true;
+                }
+            }
+            Thread.sleep(500);
+        }
+        return false;
+    }
+
+    /**
+     * Wait for all processors in a process group to be idle
+     */
+    public boolean waitForProcessGroupIdle(String processGroupId, long timeoutMs) throws Exception {
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < timeoutMs) {
+            FlowApi flowApi = new FlowApi(client);
+            org.giwi.nifi.client.model.ProcessGroupStatusEntity statusEntity = flowApi.getProcessGroupStatus(processGroupId, false, false, null);
+            if (statusEntity.getProcessGroupStatus() != null &&
+                statusEntity.getProcessGroupStatus().getAggregateSnapshot() != null) {
+                Integer activeThreads = statusEntity.getProcessGroupStatus().getAggregateSnapshot().getActiveThreadCount();
+                if (activeThreads != null && activeThreads == 0) {
+                    return true;
+                }
+            }
+            Thread.sleep(1000);
+        }
+        return false;
+    }
+
+    /**
+     * List flow files in a connection queue
+     */
+    public List<org.giwi.nifi.client.model.FlowFileSummaryDTO> listFlowFiles(String connectionId) throws Exception {
+        FlowFileQueuesApi queueApi = new FlowFileQueuesApi(client);
+        ListingRequestEntity listing = queueApi.createFlowFileListing(connectionId);
+
+        // Wait for listing to complete
+        String listingId = listing.getListingRequest().getId();
+        while (!"COMPLETE".equals(listing.getListingRequest().getState()) &&
+               !"FAILURE".equals(listing.getListingRequest().getState())) {
+            Thread.sleep(200);
+            listing = queueApi.getListingRequest(connectionId, listingId);
+        }
+
+        if ("COMPLETE".equals(listing.getListingRequest().getState()) &&
+            listing.getListingRequest().getFlowFileSummaries() != null) {
+            return listing.getListingRequest().getFlowFileSummaries();
+        }
+        return new ArrayList<>();
+    }
+
+    /**
+     * Download flow file content from a queue
+     */
+    public byte[] downloadFlowFileContent(String connectionId, String flowFileUuid) throws Exception {
+        FlowFileQueuesApi queueApi = new FlowFileQueuesApi(client);
+        Object content = queueApi.downloadFlowFileContent(connectionId, flowFileUuid, null, null, null);
+        // Content is returned as raw bytes or string depending on the API
+        if (content instanceof byte[]) {
+            return (byte[]) content;
+        } else if (content != null) {
+            return content.toString().getBytes("UTF-8");
+        }
+        return new byte[0];
+    }
+
+    /**
+     * Get the content of all flow files in a connection as strings
+     */
+    public List<String> getFlowFileContentsAsString(String connectionId) throws Exception {
+        List<String> contents = new ArrayList<>();
+        List<org.giwi.nifi.client.model.FlowFileSummaryDTO> flowFiles = listFlowFiles(connectionId);
+        for (org.giwi.nifi.client.model.FlowFileSummaryDTO ff : flowFiles) {
+            try {
+                byte[] content = downloadFlowFileContent(connectionId, ff.getUuid());
+                contents.add(new String(content, "UTF-8"));
+            } catch (Exception e) {
+                System.out.println("Warning: Failed to download flow file content: " + e.getMessage());
+            }
+        }
+        return contents;
+    }
+
+    /**
+     * Assert that a connection queue contains expected content
+     */
+    public boolean assertQueueContains(String connectionId, String expectedContent) throws Exception {
+        List<String> contents = getFlowFileContentsAsString(connectionId);
+        for (String content : contents) {
+            if (content.contains(expectedContent)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Assert that output from a processor contains expected content
+     */
+    public boolean assertProcessorOutputContains(String processGroupId, String processorName, String expectedContent) throws Exception {
+        List<String> connectionIds = getConnectionIdsForProcessor(processGroupId, processorName);
+        for (String connId : connectionIds) {
+            if (assertQueueContains(connId, expectedContent)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Drop all flow files in a connection (clear the queue)
+     */
+    public void clearQueue(String connectionId) throws Exception {
+        FlowFileQueuesApi queueApi = new FlowFileQueuesApi(client);
+        queueApi.createDropRequest(connectionId);
+        // Note: Should wait for drop to complete in production code
+    }
+
+    /**
+     * Delete a process group (real implementation)
+     */
+    public boolean deleteProcessGroupReal(String processGroupId) throws Exception {
+        try {
+            ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
+            pgApi.removeProcessGroup(processGroupId, null, null, null);
+            return true;
+        } catch (Exception e) {
+            System.out.println("Warning: Failed to delete process group: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ==================== END TESTING UTILITIES ====================
 
     public static class PipelineTesterResult {
         private boolean success;

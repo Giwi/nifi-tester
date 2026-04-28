@@ -8,10 +8,13 @@ processors:
     x: 200
     y: 100
     state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "5 sec"
+    concurrentlySchedulableTaskCount: 1
     properties:
       Data Format: Text
       File Size: 1KB
-      Text: Hello World from NiFi Test Pipeline
+      Custom Text: Hello World from NiFi Test Pipeline
       Unique FlowFiles: "false"
 
   - name: LogAttribute
@@ -19,10 +22,15 @@ processors:
     x: 500
     y: 100
     state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 sec"
     properties:
       Log Level: info
       Attributes to Ignore: uuid
       Log Prefix: "Processed: "
+    # Auto-terminate the success relationship since no downstream connection
+    autoTerminatedRelationships:
+      - success
 
 connections:
   - name: Success Relationship

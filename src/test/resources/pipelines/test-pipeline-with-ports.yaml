@@ -1,0 +1,82 @@
+name: Test Pipeline With Ports
+description: A testable pipeline with input and output ports for unit testing
+parentGroupId: root
+
+processors:
+  - name: GenerateTestData
+    type: org.apache.nifi.processors.standard.GenerateFlowFile
+    x: 200
+    y: 200
+    state: STOPPED
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 min"
+    properties:
+      Data Format: Text
+      File Size: 1KB
+      Text: "Default test content"
+      Unique FlowFiles: "false"
+
+  - name: ProcessData
+    type: org.apache.nifi.processors.standard.ReplaceText
+    x: 500
+    y: 200
+    state: STOPPED
+    properties:
+      "Replacement Strategy": "Always Replace"
+      "Replacement Value": "Processed: ${'Original Content'}"
+
+  - name: LogOutput
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 800
+    y: 200
+    state: STOPPED
+    properties:
+      "Log Level": "info"
+      "Log Prefix": "[Test Output] "
+    autoTerminatedRelationships:
+      - success
+
+inputPorts:
+  - name: TestInput
+    x: 50
+    y: 200
+    state: STOPPED
+
+outputPorts:
+  - name: TestOutput
+    x: 1000
+    y: 200
+    state: STOPPED
+
+connections:
+  - name: Input to GenerateTestData
+    sourceId: ${TestInput}
+    destinationId: ${GenerateTestData}
+    relationships:
+      - success
+    x: 125
+    y: 200
+
+  - name: Generate to Process
+    sourceId: ${GenerateTestData}
+    destinationId: ${ProcessData}
+    relationships:
+      - success
+    x: 350
+    y: 200
+
+  - name: Process to Log
+    sourceId: ${ProcessData}
+    destinationId: ${LogOutput}
+    relationships:
+      - success
+    x: 650
+    y: 200
+
+  - name: Process to Output
+    sourceId: ${ProcessData}
+    destinationId: ${TestOutput}
+    relationships:
+      - success
+    x: 900
+    y: 200
