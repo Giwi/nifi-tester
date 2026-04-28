@@ -20,16 +20,14 @@ class NiFiConnectionExtension implements BeforeEachCallback {
 
         AnnotatedElement element = context.getElement().get();
 
-        if (element instanceof Class) {
-            Class<?> clazz = (Class<?>) element;
+        if (element instanceof Class<?> clazz) {
             NiFiConnection annotation = clazz.getAnnotation(NiFiConnection.class);
             if (annotation != null) {
                 url = annotation.url();
                 user = annotation.user();
                 password = annotation.password();
             }
-        } else if (element instanceof Method) {
-            Method method = (Method) element;
+        } else if (element instanceof Method method) {
             NiFiConnection annotation = method.getAnnotation(NiFiConnection.class);
             if (annotation != null) {
                 url = annotation.url();
