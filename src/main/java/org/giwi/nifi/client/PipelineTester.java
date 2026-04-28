@@ -1,5 +1,9 @@
 package org.giwi.nifi.client;
 
+import org.giwi.nifi.client.api.*;
+import org.giwi.nifi.client.invoker.ApiClient;
+import org.giwi.nifi.client.model.*;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.AnnotatedElement;
@@ -8,33 +12,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-
-import org.giwi.nifi.client.api.AccessApi;
-import org.giwi.nifi.client.api.ConnectionsApi;
-import org.giwi.nifi.client.api.FlowApi;
-import org.giwi.nifi.client.api.FlowFileQueuesApi;
-import org.giwi.nifi.client.api.FunnelsApi;
-import org.giwi.nifi.client.api.InputPortsApi;
-import org.giwi.nifi.client.api.OutputPortsApi;
-import org.giwi.nifi.client.api.ProcessGroupsApi;
-import org.giwi.nifi.client.api.ProcessorsApi;
-import org.giwi.nifi.client.invoker.ApiClient;
-import org.giwi.nifi.client.model.BundleDTO;
-import org.giwi.nifi.client.model.ConnectionEntity;
-import org.giwi.nifi.client.model.ConnectionsEntity;
-import org.giwi.nifi.client.model.ConnectableDTO;
-import org.giwi.nifi.client.model.FlowFileSummaryDTO;
-import org.giwi.nifi.client.model.FunnelEntity;
-import org.giwi.nifi.client.model.InputPortsEntity;
-import org.giwi.nifi.client.model.ListingRequestEntity;
-import org.giwi.nifi.client.model.OutputPortsEntity;
-import org.giwi.nifi.client.model.PositionDTO;
-import org.giwi.nifi.client.model.ProcessGroupEntity;
-import org.giwi.nifi.client.model.ProcessorEntity;
-import org.giwi.nifi.client.model.ProcessorsEntity;
-import org.giwi.nifi.client.model.RevisionDTO;
-import org.giwi.nifi.client.NiFiConnection;
 
 public class PipelineTester {
     private final ApiClient client;
@@ -84,7 +61,7 @@ public class PipelineTester {
     /**
      * Creates a PipelineTester with the specified NiFi URL and credentials.
      *
-     * @param nifiUrl The NiFi API base URL
+     * @param nifiUrl  The NiFi API base URL
      * @param username The username for authentication
      * @param password The password for authentication
      * @throws Exception if login fails
@@ -177,8 +154,8 @@ public class PipelineTester {
                     org.giwi.nifi.client.model.FunnelDTO funnelDto = new org.giwi.nifi.client.model.FunnelDTO();
                     funnelDto.setParentGroupId(newPgId);
                     PositionDTO pos = new PositionDTO();
-                    pos.setX(((Number) funnel.getOrDefault("x",0)).doubleValue());
-                    pos.setY(((Number) funnel.getOrDefault("y",0)).doubleValue());
+                    pos.setX(((Number) funnel.getOrDefault("x", 0)).doubleValue());
+                    pos.setY(((Number) funnel.getOrDefault("y", 0)).doubleValue());
                     funnelDto.setPosition(pos);
                     funnelEntity.setComponent(funnelDto);
                     RevisionDTO funnelRev = new RevisionDTO();

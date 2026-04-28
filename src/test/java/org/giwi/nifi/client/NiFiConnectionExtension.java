@@ -1,9 +1,10 @@
 package org.giwi.nifi.client;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.AnnotatedElement;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
-import org.junit.jupiter.api.extension.*;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
 
 class NiFiConnectionExtension implements BeforeEachCallback {
 
@@ -18,7 +19,7 @@ class NiFiConnectionExtension implements BeforeEachCallback {
         String password = System.getProperty(NIFI_PASS, "admin");
 
         AnnotatedElement element = context.getElement().get();
-        
+
         if (element instanceof Class) {
             Class<?> clazz = (Class<?>) element;
             NiFiConnection annotation = clazz.getAnnotation(NiFiConnection.class);
