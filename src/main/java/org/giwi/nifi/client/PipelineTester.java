@@ -41,12 +41,23 @@ public class PipelineTester {
     private final PipelineConverter converter;
     private String accessToken;
 
+    /**
+     * Creates a PipelineTester with the specified NiFi URL.
+     *
+     * @param nifiUrl The NiFi API base URL
+     */
     public PipelineTester(String nifiUrl) {
         this.client = new ApiClient();
         this.client.setBasePath(nifiUrl);
         this.converter = new PipelineConverter();
     }
 
+    /**
+     * Creates a PipelineTester using connection details from {@link NiFiConnection} annotation.
+     *
+     * @param element The annotated element (class or method) to read annotation from
+     * @throws Exception if login fails
+     */
     public PipelineTester(AnnotatedElement element) throws Exception {
         String url = "https://localhost:8443/nifi-api";
         String user = "admin";
@@ -70,11 +81,26 @@ public class PipelineTester {
         login(user, password);
     }
 
+    /**
+     * Creates a PipelineTester with the specified NiFi URL and credentials.
+     *
+     * @param nifiUrl The NiFi API base URL
+     * @param username The username for authentication
+     * @param password The password for authentication
+     * @throws Exception if login fails
+     */
     public PipelineTester(String nifiUrl, String username, String password) throws Exception {
         this(nifiUrl);
         login(username, password);
     }
 
+    /**
+     * Logs in to NiFi with the specified credentials.
+     *
+     * @param username The username
+     * @param password The password
+     * @throws Exception if login fails
+     */
     public void login(String username, String password) throws Exception {
         AccessApi accessApi = new AccessApi(client);
         String token = accessApi.createAccessToken(password, username);
@@ -82,6 +108,13 @@ public class PipelineTester {
         this.client.addDefaultHeader("Authorization", "Bearer " + token);
     }
 
+    /**
+     * Deploys a pipeline from a YAML file to the root process group.
+     *
+     * @param yamlFile The YAML file containing the pipeline definition
+     * @return A PipelineTesterResult with deployment status
+     * @throws IOException if the file cannot be read
+     */
     public PipelineTesterResult deployPipeline(File yamlFile) throws IOException {
         return deployPipeline(yamlFile, "root");
     }
@@ -120,21 +153,21 @@ public class PipelineTester {
             result.setProcessGroupId(newPgId);
             System.out.println("Created process group: " + newPgId);
 
-             // Create processors
-             if (pipelineData.containsKey("processors")) {
-                 List<Map<String, Object>> processors = (List<Map<String, Object>>) pipelineData.get("processors");
-                 System.out.println("Number of processor entries to create: " + processors.size());
-                 for (Map<String, Object> procWrapper : processors) {
-                     ProcessorEntity procEntity = createProcessorEntity(procWrapper, newPgId);
-                     ProcessorEntity created = pgApi.createProcessor(newPgId, procEntity);
-                     String procId = created.getComponent().getId();
-                     Map<String, Object> proc = procWrapper;
-                     if (procWrapper.containsKey("processor")) {
-                         proc = (Map<String, Object>) procWrapper.get("processor");
-                     }
-                     processorIdMap.put((String) proc.get("name"), procId);
-                 }
-             }
+            // Create processors
+            if (pipelineData.containsKey("processors")) {
+                List<Map<String, Object>> processors = (List<Map<String, Object>>) pipelineData.get("processors");
+                System.out.println("Number of processor entries to create: " + processors.size());
+                for (Map<String, Object> procWrapper : processors) {
+                    ProcessorEntity procEntity = createProcessorEntity(procWrapper, newPgId);
+                    ProcessorEntity created = pgApi.createProcessor(newPgId, procEntity);
+                    String procId = created.getComponent().getId();
+                    Map<String, Object> proc = procWrapper;
+                    if (procWrapper.containsKey("processor")) {
+                        proc = (Map<String, Object>) procWrapper.get("processor");
+                    }
+                    processorIdMap.put((String) proc.get("name"), procId);
+                }
+            }
 
             // Create funnels
             if (pipelineData.containsKey("funnels")) {
@@ -155,25 +188,25 @@ public class PipelineTester {
                 }
             }
 
-             // Create connections
-              if (pipelineData.containsKey("connections")) {
-                  List<Map<String, Object>> connections = (List<Map<String, Object>>) pipelineData.get("connections");
-                  for (Map<String, Object> connWrapper : connections) {
-                      // Handle both wrapper format (from converter) and flat format
-                      Map<String, Object> conn = connWrapper;
-                      if (connWrapper.containsKey("connection")) {
-                          conn = (Map<String, Object>) connWrapper.get("connection");
-                      }
-                      ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
-                      if (connEntity != null) {
-                          debugConnectionEntity(connEntity);
-                          pgApi.createConnection(newPgId, connEntity);
-                      }
-                  }
-              }
+            // Create connections
+            if (pipelineData.containsKey("connections")) {
+                List<Map<String, Object>> connections = (List<Map<String, Object>>) pipelineData.get("connections");
+                for (Map<String, Object> connWrapper : connections) {
+                    // Handle both wrapper format (from converter) and flat format
+                    Map<String, Object> conn = connWrapper;
+                    if (connWrapper.containsKey("connection")) {
+                        conn = (Map<String, Object>) connWrapper.get("connection");
+                    }
+                    ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
+                    if (connEntity != null) {
+                        debugConnectionEntity(connEntity);
+                        pgApi.createConnection(newPgId, connEntity);
+                    }
+                }
+            }
 
-             // Auto-terminate unconnected relationships
-             autoTerminateUnconnectedRelationships(pgApi, newPgId, processorIdMap, pipelineData);
+            // Auto-terminate unconnected relationships
+            autoTerminateUnconnectedRelationships(pgApi, newPgId, processorIdMap, pipelineData);
 
             result.setSuccess(true);
             result.setMessage("Pipeline deployed successfully: " + newPgId);
@@ -184,6 +217,81 @@ public class PipelineTester {
         }
 
         return result;
+    }
+
+
+    public ApiClient getClient() {
+        return client;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void autoTerminateUnconnectedRelationships(ProcessGroupsApi pgApi, String pgId, Map<String, String> processorIdMap, Map<String, Object> pipelineData) {
+        try {
+            ProcessorsApi procApi = new ProcessorsApi(client);
+
+            // Collect all connected source relationships
+            Map<String, java.util.Set<String>> connectedRelationships = new HashMap<>();
+            if (pipelineData.containsKey("connections")) {
+                List<Map<String, Object>> connections = (List<Map<String, Object>>) pipelineData.get("connections");
+                for (Map<String, Object> connWrapper : connections) {
+                    Map<String, Object> conn = connWrapper;
+                    if (connWrapper.containsKey("connection")) {
+                        conn = (Map<String, Object>) connWrapper.get("connection");
+                    }
+                    String sourceId = extractIdFromRef((String) conn.get("sourceId"));
+                    List<String> rels = (List<String>) conn.getOrDefault("selectedRelationships", new ArrayList<>());
+                    connectedRelationships.computeIfAbsent(sourceId, k -> new java.util.HashSet<>()).addAll(rels);
+                }
+            }
+
+            // For each processor, check unconnected relationships
+            for (Map.Entry<String, String> entry : processorIdMap.entrySet()) {
+                String procName = entry.getKey();
+                String procId = entry.getValue();
+
+                // Get current processor to check relationships
+                ProcessorEntity procEntity = procApi.getProcessor(procId);
+                if (procEntity == null || procEntity.getComponent() == null) continue;
+
+                org.giwi.nifi.client.model.ProcessorDTO procDTO = procEntity.getComponent();
+                List<org.giwi.nifi.client.model.RelationshipDTO> relationships = procDTO.getRelationships();
+                if (relationships == null) continue;
+
+                // Get already auto-terminated relationships
+                java.util.Set<String> autoTerminated = new java.util.LinkedHashSet<>();
+                if (procDTO.getConfig() != null && procDTO.getConfig().getAutoTerminatedRelationships() != null) {
+                    autoTerminated.addAll(procDTO.getConfig().getAutoTerminatedRelationships());
+                }
+
+                // Get connected relationships for this processor
+                java.util.Set<String> connected = connectedRelationships.getOrDefault(procName, java.util.Collections.emptySet());
+
+                // Find unconnected relationships
+                boolean needsUpdate = false;
+                for (org.giwi.nifi.client.model.RelationshipDTO rel : relationships) {
+                    String relName = rel.getName();
+                    if (!connected.contains(relName) && !autoTerminated.contains(relName)) {
+                        autoTerminated.add(relName);
+                        needsUpdate = true;
+                        System.out.println("Auto-terminating relationship: " + relName + " for processor: " + procName);
+                    }
+                }
+
+                // Update processor if needed
+                if (needsUpdate && procDTO.getConfig() != null) {
+                    procDTO.getConfig().setAutoTerminatedRelationships(autoTerminated);
+
+                    // Update revision
+                    procEntity.getComponent().setConfig(procDTO.getConfig());
+                    procEntity.getRevision().setVersion(procEntity.getRevision().getVersion());
+
+                    procApi.updateProcessor(procId, procEntity);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Warning: Failed to auto-terminate relationships: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private ProcessorEntity createProcessorEntity(Map<String, Object> proc, String parentGroupId) {
@@ -302,88 +410,88 @@ public class PipelineTester {
         return bundle;
     }
 
-     private ConnectionEntity createConnectionEntity(Map<String, Object> conn, String parentGroupId, Map<String, String> processorIdMap) {
-         // Handle both flat YAML format and converted format
-         Map<String, Object> connMap = conn;
-         if (conn.containsKey("connection")) {
-             connMap = (Map<String, Object>) conn.get("connection");
-         }
+    private ConnectionEntity createConnectionEntity(Map<String, Object> conn, String parentGroupId, Map<String, String> processorIdMap) {
+        // Handle both flat YAML format and converted format
+        Map<String, Object> connMap = conn;
+        if (conn.containsKey("connection")) {
+            connMap = (Map<String, Object>) conn.get("connection");
+        }
 
-         System.out.println("Connection map keys: " + connMap.keySet());
+        System.out.println("Connection map keys: " + connMap.keySet());
 
-         ConnectionEntity entity = new ConnectionEntity();
-         org.giwi.nifi.client.model.ConnectionDTO dto = new org.giwi.nifi.client.model.ConnectionDTO();
+        ConnectionEntity entity = new ConnectionEntity();
+        org.giwi.nifi.client.model.ConnectionDTO dto = new org.giwi.nifi.client.model.ConnectionDTO();
 
-         dto.setParentGroupId(parentGroupId);
+        dto.setParentGroupId(parentGroupId);
 
-         // Resolve source and destination IDs
-         String sourceName = extractIdFromRef((String) connMap.get("sourceId"));
-         String destName = extractIdFromRef((String) connMap.get("destinationId"));
+        // Resolve source and destination IDs
+        String sourceName = extractIdFromRef((String) connMap.get("sourceId"));
+        String destName = extractIdFromRef((String) connMap.get("destinationId"));
 
-         String sourceId = processorIdMap.getOrDefault(sourceName, sourceName);
-         String destId = processorIdMap.getOrDefault(destName, destName);
+        String sourceId = processorIdMap.getOrDefault(sourceName, sourceName);
+        String destId = processorIdMap.getOrDefault(destName, destName);
 
-         System.out.println("Creating connection: " + connMap.get("name"));
-         System.out.println("  Source: " + sourceName + " -> " + sourceId);
-         System.out.println("  Dest: " + destName + " -> " + destId);
+        System.out.println("Creating connection: " + connMap.get("name"));
+        System.out.println("  Source: " + sourceName + " -> " + sourceId);
+        System.out.println("  Dest: " + destName + " -> " + destId);
 
-          ConnectableDTO source = new ConnectableDTO();
-          source.setId(sourceId);
-          source.setType(ConnectableDTO.TypeEnum.PROCESSOR);
-          source.setGroupId(parentGroupId);
-          dto.setSource(source);
+        ConnectableDTO source = new ConnectableDTO();
+        source.setId(sourceId);
+        source.setType(ConnectableDTO.TypeEnum.PROCESSOR);
+        source.setGroupId(parentGroupId);
+        dto.setSource(source);
 
-          ConnectableDTO dest = new ConnectableDTO();
-          dest.setId(destId);
-          dest.setType(ConnectableDTO.TypeEnum.PROCESSOR);
-          dest.setGroupId(parentGroupId);
-          dto.setDestination(dest);
+        ConnectableDTO dest = new ConnectableDTO();
+        dest.setId(destId);
+        dest.setType(ConnectableDTO.TypeEnum.PROCESSOR);
+        dest.setGroupId(parentGroupId);
+        dto.setDestination(dest);
 
-         // Set relationships
-         if (connMap.containsKey("selectedRelationships")) {
-             List<String> rels = (List<String>) connMap.get("selectedRelationships");
-             dto.setSelectedRelationships(new java.util.LinkedHashSet<>(rels));
-         }
+        // Set relationships
+        if (connMap.containsKey("selectedRelationships")) {
+            List<String> rels = (List<String>) connMap.get("selectedRelationships");
+            dto.setSelectedRelationships(new java.util.LinkedHashSet<>(rels));
+        }
 
-         // Set optional connection properties from converter
-         if (connMap.containsKey("name")) {
-             dto.setName((String) connMap.get("name"));
-         }
-         if (connMap.containsKey("flowFileExpiration")) {
-             dto.setFlowFileExpiration((String) connMap.get("flowFileExpiration"));
-         }
-         if (connMap.containsKey("backPressureDataSizeThreshold")) {
-             dto.setBackPressureDataSizeThreshold((String) connMap.get("backPressureDataSizeThreshold"));
-         }
-         if (connMap.containsKey("backPressureObjectThreshold")) {
-             Object threshold = connMap.get("backPressureObjectThreshold");
-             if (threshold != null) {
-                 if (threshold instanceof Number) {
-                     dto.setBackPressureObjectThreshold(((Number) threshold).longValue());
-                 } else {
-                     try {
-                         dto.setBackPressureObjectThreshold(Long.parseLong(threshold.toString()));
-                     } catch (NumberFormatException e) {
-                         System.out.println("Warning: Invalid backPressureObjectThreshold value: " + threshold);
-                     }
-                 }
-             }
-         }
-         if (connMap.containsKey("position")) {
-             Map<String, Object> posMap = (Map<String, Object>) connMap.get("position");
-             PositionDTO pos = new PositionDTO();
-             pos.setX(((Number) posMap.getOrDefault("x", 0)).doubleValue());
-             pos.setY(((Number) posMap.getOrDefault("y", 0)).doubleValue());
-             dto.setPosition(pos);
-         }
+        // Set optional connection properties from converter
+        if (connMap.containsKey("name")) {
+            dto.setName((String) connMap.get("name"));
+        }
+        if (connMap.containsKey("flowFileExpiration")) {
+            dto.setFlowFileExpiration((String) connMap.get("flowFileExpiration"));
+        }
+        if (connMap.containsKey("backPressureDataSizeThreshold")) {
+            dto.setBackPressureDataSizeThreshold((String) connMap.get("backPressureDataSizeThreshold"));
+        }
+        if (connMap.containsKey("backPressureObjectThreshold")) {
+            Object threshold = connMap.get("backPressureObjectThreshold");
+            if (threshold != null) {
+                if (threshold instanceof Number) {
+                    dto.setBackPressureObjectThreshold(((Number) threshold).longValue());
+                } else {
+                    try {
+                        dto.setBackPressureObjectThreshold(Long.parseLong(threshold.toString()));
+                    } catch (NumberFormatException e) {
+                        System.out.println("Warning: Invalid backPressureObjectThreshold value: " + threshold);
+                    }
+                }
+            }
+        }
+        if (connMap.containsKey("position")) {
+            Map<String, Object> posMap = (Map<String, Object>) connMap.get("position");
+            PositionDTO pos = new PositionDTO();
+            pos.setX(((Number) posMap.getOrDefault("x", 0)).doubleValue());
+            pos.setY(((Number) posMap.getOrDefault("y", 0)).doubleValue());
+            dto.setPosition(pos);
+        }
 
-         RevisionDTO revision = new RevisionDTO();
-         revision.setVersion(0L);
-         entity.setRevision(revision);
-         entity.setComponent(dto);
+        RevisionDTO revision = new RevisionDTO();
+        revision.setVersion(0L);
+        entity.setRevision(revision);
+        entity.setComponent(dto);
 
-         return entity;
-     }
+        return entity;
+    }
 
     private String extractIdFromRef(String ref) {
         if (ref != null && ref.startsWith("${") && ref.endsWith("}")) {
@@ -402,37 +510,37 @@ public class PipelineTester {
     }
 
     public boolean deleteProcessGroup(String processGroupId) {
-         return true;
-     }
+        return true;
+    }
 
-     private void debugConnectionEntity(ConnectionEntity connEntity) {
-         System.out.println("\n=== Connection Entity Debug ===");
-         org.giwi.nifi.client.model.ConnectionDTO dto = connEntity.getComponent();
-         System.out.println("Parent Group ID: " + dto.getParentGroupId());
-         System.out.println("Name: " + dto.getName());
-         if (dto.getSource() != null) {
-             System.out.println("Source ID: " + dto.getSource().getId() + ", Type: " + dto.getSource().getType());
-         } else {
-             System.out.println("Source: null");
-         }
-         if (dto.getDestination() != null) {
-             System.out.println("Dest ID: " + dto.getDestination().getId() + ", Type: " + dto.getDestination().getType());
-         } else {
-             System.out.println("Dest: null");
-         }
-         System.out.println("Selected Relationships: " + dto.getSelectedRelationships());
-         System.out.println("FlowFile Expiration: " + dto.getFlowFileExpiration());
-         System.out.println("Back Pressure Data Size: " + dto.getBackPressureDataSizeThreshold());
-         System.out.println("Back Pressure Object Threshold: " + dto.getBackPressureObjectThreshold());
-         System.out.println("Position: " + (dto.getPosition() != null ? "(" + dto.getPosition().getX() + ", " + dto.getPosition().getY() + ")" : "null"));
-         System.out.println("Bends: " + (dto.getBends() != null ? dto.getBends().size() : "null"));
-         System.out.println("Revision Version: " + (connEntity.getRevision() != null ? connEntity.getRevision().getVersion() : "null"));
-         System.out.println("============================\n");
-     }
+    private void debugConnectionEntity(ConnectionEntity connEntity) {
+        System.out.println("\n=== Connection Entity Debug ===");
+        org.giwi.nifi.client.model.ConnectionDTO dto = connEntity.getComponent();
+        System.out.println("Parent Group ID: " + dto.getParentGroupId());
+        System.out.println("Name: " + dto.getName());
+        if (dto.getSource() != null) {
+            System.out.println("Source ID: " + dto.getSource().getId() + ", Type: " + dto.getSource().getType());
+        } else {
+            System.out.println("Source: null");
+        }
+        if (dto.getDestination() != null) {
+            System.out.println("Dest ID: " + dto.getDestination().getId() + ", Type: " + dto.getDestination().getType());
+        } else {
+            System.out.println("Dest: null");
+        }
+        System.out.println("Selected Relationships: " + dto.getSelectedRelationships());
+        System.out.println("FlowFile Expiration: " + dto.getFlowFileExpiration());
+        System.out.println("Back Pressure Data Size: " + dto.getBackPressureDataSizeThreshold());
+        System.out.println("Back Pressure Object Threshold: " + dto.getBackPressureObjectThreshold());
+        System.out.println("Position: " + (dto.getPosition() != null ? "(" + dto.getPosition().getX() + ", " + dto.getPosition().getY() + ")" : "null"));
+        System.out.println("Bends: " + (dto.getBends() != null ? dto.getBends().size() : "null"));
+        System.out.println("Revision Version: " + (connEntity.getRevision() != null ? connEntity.getRevision().getVersion() : "null"));
+        System.out.println("============================\n");
+    }
 
-     public String getAccessToken() {
-         return accessToken;
-     }
+    public String getAccessToken() {
+        return accessToken;
+    }
 
     // ==================== TESTING UTILITIES ====================
 
@@ -466,7 +574,7 @@ public class PipelineTester {
                     org.giwi.nifi.client.model.ConnectableDTO src = conn.getComponent().getSource();
                     org.giwi.nifi.client.model.ConnectableDTO dst = conn.getComponent().getDestination();
                     if (src != null && dst != null &&
-                        src.getId().equals(sourceId) && dst.getId().equals(destId)) {
+                            src.getId().equals(sourceId) && dst.getId().equals(destId)) {
                         return conn.getComponent().getId();
                     }
                 }
@@ -629,7 +737,7 @@ public class PipelineTester {
             FlowApi flowApi = new FlowApi(client);
             org.giwi.nifi.client.model.ProcessGroupStatusEntity statusEntity = flowApi.getProcessGroupStatus(processGroupId, false, false, null);
             if (statusEntity.getProcessGroupStatus() != null &&
-                statusEntity.getProcessGroupStatus().getAggregateSnapshot() != null) {
+                    statusEntity.getProcessGroupStatus().getAggregateSnapshot() != null) {
                 Integer activeThreads = statusEntity.getProcessGroupStatus().getAggregateSnapshot().getActiveThreadCount();
                 if (activeThreads != null && activeThreads == 0) {
                     return true;
@@ -650,13 +758,13 @@ public class PipelineTester {
         // Wait for listing to complete
         String listingId = listing.getListingRequest().getId();
         while (!"COMPLETE".equals(listing.getListingRequest().getState()) &&
-               !"FAILURE".equals(listing.getListingRequest().getState())) {
+                !"FAILURE".equals(listing.getListingRequest().getState())) {
             Thread.sleep(200);
             listing = queueApi.getListingRequest(connectionId, listingId);
         }
 
         if ("COMPLETE".equals(listing.getListingRequest().getState()) &&
-            listing.getListingRequest().getFlowFileSummaries() != null) {
+                listing.getListingRequest().getFlowFileSummaries() != null) {
             return listing.getListingRequest().getFlowFileSummaries();
         }
         return new ArrayList<>();
