@@ -41,6 +41,13 @@ This project provides a Java client library for deploying Apache NiFi pipelines 
 - Support for parent group IDs
 - Proper hierarchy management
 
+### 7. **Testing Utilities**
+- Start/stop processors and process groups
+- Wait for processors to become idle
+- List and download flow file contents
+- Assertion methods for pipeline output verification
+- Queue management (clear, query)
+
 ## Code Architecture
 
 ```
@@ -103,6 +110,10 @@ processors:
     properties:
       Property1: value1
       Property2: value2
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: 1 sec
+    autoTerminatedRelationships:
+      - success
 
 connections:
   - name: ConnectionName
@@ -110,6 +121,9 @@ connections:
     destinationId: ${DestProcessorName}
     relationships:
       - success
+    flowFileExpiration: 0 ms
+    backPressureDataSizeThreshold: 1 GB
+    backPressureObjectThreshold: 10000
     x: 150
     y: 100
 
@@ -117,6 +131,25 @@ funnels:
   - name: FunnelName
     x: 200
     y: 200
+
+inputPorts:
+  - name: InputPort
+    x: 50
+    y: 100
+
+outputPorts:
+  - name: OutputPort
+    x: 400
+    y: 100
+
+processGroups:
+  - name: SubProcessGroup
+    x: 300
+    y: 300
+
+remoteProcessGroups:
+  - name: RemoteGroup
+    targetUris: http://remote-nifi:8080/nifi-api
 ```
 
 ### Variable Resolution
@@ -127,11 +160,11 @@ funnels:
 ## Testing
 
 ### Unit Tests
-- PipelineConverterTest: YAML conversion logic
+- `PipelineConverterTest`: YAML conversion logic
 - Tests for processors, connections, ports, process groups, funnels
 
 ### Integration Tests
-- NiFiIntegrationTest: End-to-end deployment
+- `NiFiIntegrationTest`: End-to-end deployment
 - Requires NiFi server running at https://localhost:8443
 - Credentials: admin / admin1234567
 - Tests process group creation, processor deployment, and cleanup
@@ -170,7 +203,7 @@ See TESTING_GUIDE.md for detailed testing instructions.
 Current implementation:
 - Basic try-catch with result status
 - Error message returned to caller
-- Stack trace printed to console
+- Stack trace printed to console (for debugging)
 
 Recommended improvements:
 - Specific exception types for different failures
@@ -185,7 +218,7 @@ Recommended improvements:
 3. **Connection Bends** - Not yet supported (uses empty list)
 4. **Load Balancing** - Load balance strategy fields not yet configured
 5. **Prioritizers** - Connection prioritizers not yet implemented
-6. **Versioned Components** - versioned component IDs not yet handled
+6. **Versioned Components** - Versioned component IDs not yet handled
 
 ## Next Steps
 

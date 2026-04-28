@@ -122,13 +122,16 @@ class MyIntegrationTest {
 src/main/java/org/giwi/nifi/client/
 ├── PipelineConverter.java      # YAML to NiFi API converter
 ├── PipelineTester.java         # NiFi deployment client
-└── model/                       # Generated API models
+├── NiFiConnection.java         # @NiFiConnection annotation
+├── api/                       # Auto-generated API clients
+├── model/                     # Generated API models
+└── invoker/                  # API client infrastructure
 
 src/test/java/org/giwi/nifi/client/
-├── NiFiConnection.java          # @NiFiConnection annotation
 ├── PipelineConverterTest.java  # Converter unit tests
 ├── SamplePipelineTest.java    # YAML sample tests
-└── NiFiIntegrationTest.java   # NiFi integration tests
+├── NiFiIntegrationTest.java   # NiFi integration tests
+└── NiFiConnectionExtension.java # JUnit extension
 
 src/test/resources/pipelines/
 └── sample-generate-pipeline.yaml  # Sample pipeline

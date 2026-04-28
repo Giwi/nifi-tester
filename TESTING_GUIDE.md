@@ -104,7 +104,7 @@ curl -k -X POST https://localhost:8443/nifi-api/process-groups/{pgId}/connection
       "selectedRelationships": ["success"],
       "backPressureDataSizeThreshold": "1 GB",
       "backPressureObjectThreshold": 10000,
-      "flowFileExpiration": "0ms",
+      "flowFileExpiration": "0 ms",
       "parentGroupId": "{pgId}"
     }
   }'
