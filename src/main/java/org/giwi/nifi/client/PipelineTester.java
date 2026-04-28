@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -76,9 +77,8 @@ public class PipelineTester {
      *
      * @param username The username
      * @param password The password
-     * @throws Exception if login fails
      */
-    public void login(String username, String password) throws Exception {
+    public void login(String username, String password) {
         AccessApi accessApi = new AccessApi(client);
         String token = accessApi.createAccessToken(password, username);
         this.accessToken = token;
@@ -533,7 +533,7 @@ public class PipelineTester {
     /**
      * Find a processor ID by its name in a process group
      */
-    public String findProcessorIdByName(String processGroupId, String processorName) throws Exception {
+    public String findProcessorIdByName(String processGroupId, String processorName) {
         ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
         ProcessorsEntity processors = pgApi.getProcessors(processGroupId, false);
         if (processors.getProcessors() != null) {
@@ -593,7 +593,7 @@ public class PipelineTester {
     /**
      * Find an input port ID by name
      */
-    public String findInputPortIdByName(String processGroupId, String portName) throws Exception {
+    public String findInputPortIdByName(String processGroupId, String portName) {
         ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
         InputPortsEntity ports = pgApi.getInputPorts(processGroupId);
         if (ports.getInputPorts() != null) {
@@ -610,7 +610,7 @@ public class PipelineTester {
     /**
      * Find an output port ID by name
      */
-    public String findOutputPortIdByName(String processGroupId, String portName) throws Exception {
+    public String findOutputPortIdByName(String processGroupId, String portName) {
         ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
         OutputPortsEntity ports = pgApi.getOutputPorts(processGroupId);
         if (ports.getOutputPorts() != null) {
@@ -627,7 +627,7 @@ public class PipelineTester {
     /**
      * Update processor properties for testing (e.g., set custom text in GenerateFlowFile)
      */
-    public void updateProcessorProperties(String processorId, Map<String, String> properties) throws Exception {
+    public void updateProcessorProperties(String processorId, Map<String, String> properties) {
         ProcessorsApi procApi = new ProcessorsApi(client);
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
         if (procEntity.getComponent() != null) {
@@ -649,7 +649,7 @@ public class PipelineTester {
     /**
      * Set the text content for a GenerateFlowFile processor
      */
-    public void setGenerateFlowFileText(String processorId, String text) throws Exception {
+    public void setGenerateFlowFileText(String processorId, String text) {
         Map<String, String> props = new HashMap<>();
         props.put("Text", text);
         props.put("Data Format", "Text");
@@ -659,7 +659,7 @@ public class PipelineTester {
     /**
      * Start a processor
      */
-    public void startProcessor(String processorId) throws Exception {
+    public void startProcessor(String processorId) {
         ProcessorsApi procApi = new ProcessorsApi(client);
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
         assert procEntity.getComponent() != null;
@@ -670,7 +670,7 @@ public class PipelineTester {
     /**
      * Stop a processor
      */
-    public void stopProcessor(String processorId) throws Exception {
+    public void stopProcessor(String processorId) {
         ProcessorsApi procApi = new ProcessorsApi(client);
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
         assert procEntity.getComponent() != null;
@@ -681,7 +681,7 @@ public class PipelineTester {
     /**
      * Start all processors in a process group
      */
-    public void startProcessGroup(String processGroupId) throws Exception {
+    public void startProcessGroup(String processGroupId) {
         FlowApi flowApi = new FlowApi(client);
         org.giwi.nifi.client.model.ScheduleComponentsEntity schedule = new org.giwi.nifi.client.model.ScheduleComponentsEntity();
         schedule.setState(org.giwi.nifi.client.model.ScheduleComponentsEntity.StateEnum.RUNNING);
@@ -692,7 +692,7 @@ public class PipelineTester {
     /**
      * Stop all processors in a process group
      */
-    public void stopProcessGroup(String processGroupId) throws Exception {
+    public void stopProcessGroup(String processGroupId) {
         FlowApi flowApi = new FlowApi(client);
         org.giwi.nifi.client.model.ScheduleComponentsEntity schedule = new org.giwi.nifi.client.model.ScheduleComponentsEntity();
         schedule.setState(org.giwi.nifi.client.model.ScheduleComponentsEntity.StateEnum.STOPPED);
@@ -747,9 +747,12 @@ public class PipelineTester {
         ListingRequestEntity listing = queueApi.createFlowFileListing(connectionId);
 
         // Wait for listing to complete
+        assert listing.getListingRequest() != null;
         String listingId = listing.getListingRequest().getId();
-        while (!"COMPLETE".equals(listing.getListingRequest().getState()) &&
-                !"FAILURE".equals(listing.getListingRequest().getState())) {
+        while (true) {
+            assert listing.getListingRequest() != null;
+            if (!(!"COMPLETE".equals(listing.getListingRequest().getState()) &&
+                            !"FAILURE".equals(listing.getListingRequest().getState()))) break;
             Thread.sleep(200);
             listing = queueApi.getListingRequest(connectionId, listingId);
         }
@@ -771,7 +774,7 @@ public class PipelineTester {
         if (content instanceof byte[]) {
             return (byte[]) content;
         } else if (content != null) {
-            return content.toString().getBytes("UTF-8");
+            return content.toString().getBytes(StandardCharsets.UTF_8);
         }
         return new byte[0];
     }
@@ -785,7 +788,7 @@ public class PipelineTester {
         for (org.giwi.nifi.client.model.FlowFileSummaryDTO ff : flowFiles) {
             try {
                 byte[] content = downloadFlowFileContent(connectionId, ff.getUuid());
-                contents.add(new String(content, "UTF-8"));
+                contents.add(new String(content, StandardCharsets.UTF_8));
             } catch (Exception e) {
                 System.out.println("Warning: Failed to download flow file content: " + e.getMessage());
             }
