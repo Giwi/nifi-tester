@@ -19,7 +19,6 @@ class NiFiIntegrationTest {
     void testLogin() throws Exception {
         String token = tester.getAccessToken();
         assertNotNull(token);
-        System.out.println("Login successful - Token: " + token.substring(0, 20) + "...");
     }
 
     @Test
@@ -27,7 +26,6 @@ class NiFiIntegrationTest {
     void testGetRoot() throws Exception {
         var group = tester.getProcessGroup("root");
         assertNotNull(group);
-        System.out.println("Root: " + group.getComponent().getName() + " (" + group.getComponent().getId() + ")");
     }
 
     @Test
@@ -39,18 +37,13 @@ class NiFiIntegrationTest {
         );
         
         assertNotNull(result);
-        System.out.println("Deploy: " + result.getMessage());
+        assertTrue(result.isSuccess());
         
         if (result.isSuccess()) {
             String pgId = result.getProcessGroupId();
-            System.out.println("Created PG: " + pgId);
-            
             var group = tester.getProcessGroup(pgId);
             assertNotNull(group);
-            System.out.println("Verified: " + group.getComponent().getName());
-            
             tester.deleteProcessGroup(pgId);
-            System.out.println("Deleted: " + pgId);
         }
     }
 
@@ -63,22 +56,15 @@ class NiFiIntegrationTest {
         );
 
         assertNotNull(result);
-        System.out.println("Deploy: " + result.getMessage());
+        assertTrue(result.isSuccess());
 
         if (result.isSuccess()) {
             String pgId = result.getProcessGroupId();
-            System.out.println("Created PG: " + pgId);
-
             var group = tester.getProcessGroup(pgId);
             assertNotNull(group);
-            System.out.println("Verified: " + group.getComponent().getName());
-
-            System.out.println("Comprehensive pipeline deployed with multiple processors and connections");
-            System.out.println("Pipeline ID: " + pgId);
-            System.out.println("Message: " + result.getMessage());
-
-            // Cleanup - uncomment to delete after inspection
-             tester.deleteProcessGroup(pgId);
+            
+            // Cleanup
+            tester.deleteProcessGroup(pgId);
         }
     }
 }

@@ -128,12 +128,10 @@ public class PipelineTester {
             assert createdPg.getComponent() != null;
             String newPgId = createdPg.getComponent().getId();
             result.setProcessGroupId(newPgId);
-            System.out.println("Created process group: " + newPgId);
 
             // Create processors
             if (pipelineData.containsKey("processors")) {
                 List<Map<String, Object>> processors = (List<Map<String, Object>>) pipelineData.get("processors");
-                System.out.println("Number of processor entries to create: " + processors.size());
                 for (Map<String, Object> procWrapper : processors) {
                     ProcessorEntity procEntity = createProcessorEntity(procWrapper, newPgId);
                     ProcessorEntity created = pgApi.createProcessor(newPgId, procEntity);
@@ -177,7 +175,6 @@ public class PipelineTester {
                     }
                     ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
                     if (connEntity != null) {
-                        debugConnectionEntity(connEntity);
                         pgApi.createConnection(newPgId, connEntity);
                     }
                 }
@@ -251,7 +248,6 @@ public class PipelineTester {
                     if (!connected.contains(relName) && !autoTerminated.contains(relName)) {
                         autoTerminated.add(relName);
                         needsUpdate = true;
-                        System.out.println("Auto-terminating relationship: " + relName + " for processor: " + procName);
                     }
                 }
 
@@ -268,8 +264,7 @@ public class PipelineTester {
                 }
             }
         } catch (Exception e) {
-            System.out.println("Warning: Failed to auto-terminate relationships: " + e.getMessage());
-            e.printStackTrace();
+            // Failed to auto-terminate relationships
         }
     }
 
@@ -370,15 +365,11 @@ public class PipelineTester {
         bundle.setGroup("org.apache.nifi");
         bundle.setVersion("2.9.0");
 
-        System.out.println("Getting bundle for processor type: " + type);
-
         // Determine artifact based on processor type - check specific types first
         if (type != null) {
             String typeLower = type.toLowerCase();
-            System.out.println("Type lowercase: " + typeLower);
             if (typeLower.contains("jolt")) {
                 bundle.setArtifact("nifi-jolt-nar");
-                System.out.println("Using jolt bundle: nifi-jolt-nar");
             } else if (typeLower.contains("json")) {
                 bundle.setArtifact("nifi-json-nar");
             } else if (type.contains(".standard.")) {
@@ -391,7 +382,6 @@ public class PipelineTester {
             bundle.setArtifact("nifi-standard-nar");
         }
 
-        System.out.println("Final bundle artifact: " + bundle.getArtifact());
         return bundle;
     }
 
@@ -401,8 +391,6 @@ public class PipelineTester {
         if (conn.containsKey("connection")) {
             connMap = (Map<String, Object>) conn.get("connection");
         }
-
-        System.out.println("Connection map keys: " + connMap.keySet());
 
         ConnectionEntity entity = new ConnectionEntity();
         org.giwi.nifi.client.model.ConnectionDTO dto = new org.giwi.nifi.client.model.ConnectionDTO();
@@ -415,10 +403,6 @@ public class PipelineTester {
 
         String sourceId = processorIdMap.getOrDefault(sourceName, sourceName);
         String destId = processorIdMap.getOrDefault(destName, destName);
-
-        System.out.println("Creating connection: " + connMap.get("name"));
-        System.out.println("  Source: " + sourceName + " -> " + sourceId);
-        System.out.println("  Dest: " + destName + " -> " + destId);
 
         ConnectableDTO source = new ConnectableDTO();
         source.setId(sourceId);
@@ -457,7 +441,7 @@ public class PipelineTester {
                     try {
                         dto.setBackPressureObjectThreshold(Long.parseLong(threshold.toString()));
                     } catch (NumberFormatException e) {
-                        System.out.println("Warning: Invalid backPressureObjectThreshold value: " + threshold);
+                        // Invalid threshold value, skip
                     }
                 }
             }
@@ -486,42 +470,18 @@ public class PipelineTester {
     }
 
     public org.giwi.nifi.client.model.ProcessGroupEntity getProcessGroup(String processGroupId) {
-        org.giwi.nifi.client.model.ProcessGroupEntity entity = new org.giwi.nifi.client.model.ProcessGroupEntity();
-        org.giwi.nifi.client.model.ProcessGroupDTO dto = new org.giwi.nifi.client.model.ProcessGroupDTO();
-        dto.setId(processGroupId);
-        dto.setName("Mock Process Group");
-        entity.setComponent(dto);
-        return entity;
+        ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
+        return pgApi.getProcessGroup(processGroupId);
     }
 
     public boolean deleteProcessGroup(String processGroupId) {
-        return true;
-    }
-
-    private void debugConnectionEntity(ConnectionEntity connEntity) {
-        System.out.println("\n=== Connection Entity Debug ===");
-        org.giwi.nifi.client.model.ConnectionDTO dto = connEntity.getComponent();
-        assert dto != null;
-        System.out.println("Parent Group ID: " + dto.getParentGroupId());
-        System.out.println("Name: " + dto.getName());
-        if (dto.getSource() != null) {
-            System.out.println("Source ID: " + dto.getSource().getId() + ", Type: " + dto.getSource().getType());
-        } else {
-            System.out.println("Source: null");
+        try {
+            ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
+            pgApi.removeProcessGroup(processGroupId, null, null, null);
+            return true;
+        } catch (Exception e) {
+            return false;
         }
-        if (dto.getDestination() != null) {
-            System.out.println("Dest ID: " + dto.getDestination().getId() + ", Type: " + dto.getDestination().getType());
-        } else {
-            System.out.println("Dest: null");
-        }
-        System.out.println("Selected Relationships: " + dto.getSelectedRelationships());
-        System.out.println("FlowFile Expiration: " + dto.getFlowFileExpiration());
-        System.out.println("Back Pressure Data Size: " + dto.getBackPressureDataSizeThreshold());
-        System.out.println("Back Pressure Object Threshold: " + dto.getBackPressureObjectThreshold());
-        System.out.println("Position: " + (dto.getPosition() != null ? "(" + dto.getPosition().getX() + ", " + dto.getPosition().getY() + ")" : "null"));
-        System.out.println("Bends: " + (dto.getBends() != null ? dto.getBends().size() : "null"));
-        System.out.println("Revision Version: " + (connEntity.getRevision() != null ? connEntity.getRevision().getVersion() : "null"));
-        System.out.println("============================\n");
     }
 
     public String getAccessToken() {
@@ -790,7 +750,7 @@ public class PipelineTester {
                 byte[] content = downloadFlowFileContent(connectionId, ff.getUuid());
                 contents.add(new String(content, StandardCharsets.UTF_8));
             } catch (Exception e) {
-                System.out.println("Warning: Failed to download flow file content: " + e.getMessage());
+                // Failed to download flow file content
             }
         }
         return contents;
@@ -829,20 +789,6 @@ public class PipelineTester {
         FlowFileQueuesApi queueApi = new FlowFileQueuesApi(client);
         queueApi.createDropRequest(connectionId);
         // Note: Should wait for drop to complete in production code
-    }
-
-    /**
-     * Delete a process group (real implementation)
-     */
-    public boolean deleteProcessGroupReal(String processGroupId) throws Exception {
-        try {
-            ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
-            pgApi.removeProcessGroup(processGroupId, null, null, null);
-            return true;
-        } catch (Exception e) {
-            System.out.println("Warning: Failed to delete process group: " + e.getMessage());
-            return false;
-        }
     }
 
     // ==================== END TESTING UTILITIES ====================
