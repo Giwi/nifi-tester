@@ -16,7 +16,7 @@ processors:
       File Size: 0B
 
   - name: AppendWorld
-    type: org.apache.nifi.processors.groovy.ExecuteGroovyScript
+    type: org.apache.nifi.processors.groovyx.ExecuteGroovyScript
     x: 400
     y: 100
     state: RUNNING
