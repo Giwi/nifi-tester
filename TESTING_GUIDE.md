@@ -44,7 +44,7 @@ curl -k https://localhost:8443/nifi-api/system-diagnostics
 ### Test 1: Simple Pipeline (1 Processor)
 
 ```bash
-./gradlew test --tests "NiFiIntegrationTest.testDeployPipeline"
+./gradlew test --tests "NiFiIntegrationTest"
 ```
 
 Expected Result:
@@ -52,17 +52,28 @@ Expected Result:
 - Single GenerateFlowFile processor created
 - Process group can be queried and deleted
 
-### Test 2: Complex Pipeline (6 Processors, 5 Connections)
+### Test 2: Comprehensive Pipeline Tests
 
 ```bash
-./gradlew test --tests "NiFiIntegrationTest.testDeployComprehensivePipeline"
+./gradlew test --tests "PipelineIntegrationTest"
 ```
 
 Expected Result:
 - Process group created
-- All 6 processors created
-- All 5 connections created successfully
-- Process group can be queried
+- Multiple processors created
+- Connections created successfully
+- Process group can be queried and cleaned up
+
+### Test 3: Pipeline with Ports
+
+```bash
+./gradlew test --tests "PipelineIntegrationTest.testPipelineWithPorts"
+```
+
+Expected Result:
+- Process group created with input/output ports
+- Processors connected through ports
+- Proper data flow through the pipeline
 
 ## Debugging Connection Errors
 
@@ -127,7 +138,7 @@ curl -k -X POST https://localhost:8443/nifi-api/process-groups/{pgId}/connection
 **Solution**: Check the following in code order:
 1. Verify processor IDs are correctly resolved in `processorIdMap`
 2. Check ConnectionDTO has source and destination objects with correct ID and type
-3. Add bends list if needed: `dto.setBends(new ArrayList<>())`
+3. Bends list is set to empty ArrayList in current implementation
 4. Verify parentGroupId matches the actual process group
 
 ### Issue: Relationships Not Recognized
@@ -144,4 +155,4 @@ curl -k -X POST https://localhost:8443/nifi-api/process-groups/{pgId}/connection
 2. If tests fail, debug using the guide above
 3. Add more complex pipeline scenarios (nested groups, ports, remote groups)
 4. Add error handling and retry logic
-5. Implement deleteProcessGroup() properly (currently mocked)
+5. Switch deleteProcessGroup() to use real implementation (deleteProcessGroupReal() available)

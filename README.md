@@ -89,15 +89,14 @@ assertNotNull(result.get("processors"));
 ```
 
 ### Integration Tests
-
 ```java
-@NiFiConnection(url = "http://localhost:8080/nifi-api", user = "admin", password = "admin")
+@NiFiConnection(url = "https://localhost:8443/nifi-api", user = "admin", password = "admin1234567")
 class MyIntegrationTest {
-    
+
     @Test
     void testDeploy() {
-        PipelineTester tester = new PipelineTester(url, user, pass);
-        PipelineTesterResult result = tester.deployPipeline(new File("pipeline.yaml"));
+        PipelineTester tester = new PipelineTester(getClass());
+        PipelineTesterResult result = tester.deployPipeline(new File("pipeline.yaml"), "root");
         assertTrue(result.isSuccess());
     }
 }
@@ -110,10 +109,12 @@ class MyIntegrationTest {
 ./gradlew test
 
 # Integration tests with NiFi
-./gradlew test -Dnifi.url=https://localhost:8443/nifi-api -Dnifi.user=admin -Dnifi.pass=admin
+./gradlew test -Dnifi.url=https://localhost:8443/nifi-api -Dnifi.user=admin -Dnifi.pass=admin1234567
 
 # Specific test class
-./gradlew test --tests "org.giwi.nifi.client.SamplePipelineTest"
+./gradlew test --tests "org.giwi.nifi.client.PipelineConverterTest"
+./gradlew test --tests "org.giwi.nifi.client.NiFiIntegrationTest"
+./gradlew test --tests "org.giwi.nifi.client.PipelineIntegrationTest"
 ```
 
 ## Project Structure
@@ -131,18 +132,23 @@ src/test/java/org/giwi/nifi/client/
 ├── PipelineConverterTest.java  # Converter unit tests
 ├── SamplePipelineTest.java    # YAML sample tests
 ├── NiFiIntegrationTest.java   # NiFi integration tests
+├── PipelineIntegrationTest.java # Pipeline integration tests
 └── NiFiConnectionExtension.java # JUnit extension
 
 src/test/resources/pipelines/
-└── sample-generate-pipeline.yaml  # Sample pipeline
+├── sample-generate-pipeline.yaml      # Single processor test
+├── sample-deployment-pipeline.yaml   # Complex pipeline with 6 processors
+└── test-pipeline-with-ports.yaml      # Pipeline with input/output ports
 ```
 
 ## Dependencies
 
+- Java 17
 - Spring Boot 3.4.1 (Web, JSON)
 - Jackson (YAML, JSR310, Nullable)
 - OpenAPI Generator 7.14.0
-- JUnit 5
+- JUnit 5 (Jupiter)
+- Gradle 9.4.1+
 
 ## Configuration
 

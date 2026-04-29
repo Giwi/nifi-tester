@@ -164,14 +164,16 @@ remoteProcessGroups:
 - Tests for processors, connections, ports, process groups, funnels
 
 ### Integration Tests
-- `NiFiIntegrationTest`: End-to-end deployment
+- `NiFiIntegrationTest`: End-to-end deployment with single processor
+- `PipelineIntegrationTest`: Comprehensive pipeline tests with multiple processors
 - Requires NiFi server running at https://localhost:8443
 - Credentials: admin / admin1234567
-- Tests process group creation, processor deployment, and cleanup
+- Tests process group creation, processor deployment, connections, and cleanup
 
 ### Test Pipelines
 - `sample-generate-pipeline.yaml`: Single processor test
 - `sample-deployment-pipeline.yaml`: Complex pipeline with 6 processors and connections
+- `test-pipeline-with-ports.yaml`: Pipeline with input/output ports
 
 See TESTING_GUIDE.md for detailed testing instructions.
 
@@ -213,7 +215,7 @@ Recommended improvements:
 
 ## Known Limitations
 
-1. **deleteProcessGroup()** - Currently mocked (returns true without deletion)
+1. **deleteProcessGroup()** - Currently mocked (returns true without deletion), but `deleteProcessGroupReal()` is available for actual deletion
 2. **Process Group Cleanup** - No automatic cleanup on failure
 3. **Connection Bends** - Not yet supported (uses empty list)
 4. **Load Balancing** - Load balance strategy fields not yet configured
@@ -223,17 +225,18 @@ Recommended improvements:
 ## Next Steps
 
 ### Short Term
-1. ✅ Fix Java compilation (Java 26-ea compatibility)
+1. ✅ Fix Java compilation (Java 17 compatibility)
 2. ✅ Improve connection creation with all fields
-3. ⏳ Test with actual NiFi server
-4. Test connection creation and verify it doesn't return 500 error
+3. ✅ Test with actual NiFi server
+4. ✅ Test connection creation and verify it doesn't return 500 error
+5. Switch deleteProcessGroup() to use real implementation
 
 ### Medium Term
-1. Implement proper deleteProcessGroup()
-2. Add support for nested process groups
-3. Add error recovery and rollback logic
-4. Support for input/output ports
-5. Remote process group support
+1. Add support for nested process groups
+2. Add error recovery and rollback logic
+3. Support for input/output ports
+4. Remote process group support
+5. Implement connection bends support
 
 ### Long Term
 1. Template management
@@ -244,12 +247,13 @@ Recommended improvements:
 
 ## Dependencies
 
+- Java 17
 - Spring Boot 3.4.1 (Web, JSON)
 - Jackson (YAML, JSR310, Nullable)
 - OpenAPI Generator 7.14.0
-- JUnit 5
+- JUnit 5 (Jupiter)
 - Gradle 9.4.1+
-- Java 21+ (tested with 26-ea)
+- javax.annotation-api 1.3.2
 
 ## Building
 
