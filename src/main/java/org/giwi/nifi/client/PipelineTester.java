@@ -381,6 +381,8 @@ public class PipelineTester {
                 bundle.setArtifact("nifi-jolt-nar");
             } else if (typeLower.contains("json")) {
                 bundle.setArtifact("nifi-json-nar");
+            } else if (typeLower.contains("groovy")) {
+                bundle.setArtifact("nifi-groovy-nar");
             } else if (type.contains(".standard.")) {
                 bundle.setArtifact("nifi-standard-nar");
             } else {
