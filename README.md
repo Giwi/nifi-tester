@@ -105,16 +105,19 @@ class MyIntegrationTest {
 ### Run Tests
 
 ```bash
-# All unit tests
+# Unit tests only (fast, no NiFi required)
 ./gradlew test
 
-# Integration tests with NiFi
-./gradlew test -Dnifi.url=https://localhost:8443/nifi-api -Dnifi.user=admin -Dnifi.pass=admin1234567
+# Integration tests (requires running NiFi instance)
+./gradlew integrationTest
+
+# Integration tests with custom NiFi
+./gradlew integrationTest -Dnifi.url=https://localhost:8443/nifi-api -Dnifi.user=admin -Dnifi.pass=admin1234567
 
 # Specific test class
 ./gradlew test --tests "org.giwi.nifi.client.PipelineConverterTest"
-./gradlew test --tests "org.giwi.nifi.client.NiFiIntegrationTest"
-./gradlew test --tests "org.giwi.nifi.client.PipelineIntegrationTest"
+./gradlew integrationTest --tests "org.giwi.nifi.client.NiFiIntegrationTest"
+./gradlew integrationTest --tests "org.giwi.nifi.client.PipelineIntegrationTest"
 ```
 
 ## Project Structure

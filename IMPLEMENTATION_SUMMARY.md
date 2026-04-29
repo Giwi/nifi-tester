@@ -23,6 +23,8 @@ This project provides a Java client library for deploying Apache NiFi pipelines 
   - URL-based: `new PipelineTester(url, username, password)`
   - Annotation-based: `new PipelineTester(testClass)` with `@NiFiConnection` annotation
 - Login and token management with Bearer authentication
+- Process group creation and management
+- Pipeline deployment from YAML files
 
 ### 4. **Processor Creation**
 - Automatic bundle detection based on processor type
@@ -161,7 +163,9 @@ remoteProcessGroups:
 
 ### Unit Tests
 - `PipelineConverterTest`: YAML conversion logic
+- `SamplePipelineTest`: Tests with sample YAML files
 - Tests for processors, connections, ports, process groups, funnels
+- Run with: `./gradlew test`
 
 ### Integration Tests
 - `NiFiIntegrationTest`: End-to-end deployment with single processor
@@ -169,10 +173,12 @@ remoteProcessGroups:
 - Requires NiFi server running at https://localhost:8443
 - Credentials: admin / admin1234567
 - Tests process group creation, processor deployment, connections, and cleanup
+- Run with: `./gradlew integrationTest`
 
 ### Test Pipelines
-- `sample-generate-pipeline.yaml`: Single processor test
+- `sample-generate-pipeline.yaml`: Simple pipeline with 2 processors
 - `sample-deployment-pipeline.yaml`: Complex pipeline with 6 processors and connections
+- `groovy-script-pipeline.yaml`: Pipeline with Groovy script and input/output ports
 - `test-pipeline-with-ports.yaml`: Pipeline with input/output ports
 
 See TESTING_GUIDE.md for detailed testing instructions.
@@ -221,6 +227,16 @@ Recommended improvements:
 4. **Load Balancing** - Load balance strategy fields not yet configured
 5. **Prioritizers** - Connection prioritizers not yet implemented
 6. **Versioned Components** - Versioned component IDs not yet handled
+
+## Recently Completed
+
+1. ✅ Fixed Java compilation (Java 17 compatibility)
+2. ✅ Improved connection creation with all fields
+3. ✅ Tested with actual NiFi server
+4. ✅ Fixed connection creation (no more 500 errors)
+5. ✅ Added integration test configuration (separated from unit tests)
+6. ✅ Added support for input/output ports in pipelines
+7. ✅ Added Groovy script pipeline test example
 
 ## Next Steps
 

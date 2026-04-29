@@ -15,12 +15,12 @@ docker run -d \
   -e NIFI_SECURITY_USER_AUTHORIZER=single-user-authorizer \
   -e SINGLE_USER_CREDENTIALS_USERNAME=admin \
   -e SINGLE_USER_CREDENTIALS_PASSWORD=admin1234567 \
-  apache/nifi:2.9.0
+  apache/nifi:2.0.0-M2
 ```
 
 #### Option B: Local Installation
 
-1. Download NiFi 2.9.0 from https://nifi.apache.org/download.html
+1. Download NiFi 2.0.0-M2 from https://nifi.apache.org/download.html
 2. Extract and navigate to nifi directory
 3. Configure `conf/nifi.properties`:
    ```
@@ -44,7 +44,7 @@ curl -k https://localhost:8443/nifi-api/system-diagnostics
 ### Test 1: Simple Pipeline (1 Processor)
 
 ```bash
-./gradlew test --tests "NiFiIntegrationTest"
+./gradlew integrationTest --tests "org.giwi.nifi.client.NiFiIntegrationTest"
 ```
 
 Expected Result:
@@ -55,7 +55,7 @@ Expected Result:
 ### Test 2: Comprehensive Pipeline Tests
 
 ```bash
-./gradlew test --tests "PipelineIntegrationTest"
+./gradlew integrationTest --tests "org.giwi.nifi.client.PipelineIntegrationTest"
 ```
 
 Expected Result:
@@ -67,7 +67,7 @@ Expected Result:
 ### Test 3: Pipeline with Ports
 
 ```bash
-./gradlew test --tests "PipelineIntegrationTest.testPipelineWithPorts"
+./gradlew integrationTest --tests "org.giwi.nifi.client.PipelineIntegrationTest.testPipelineWithPorts"
 ```
 
 Expected Result:
