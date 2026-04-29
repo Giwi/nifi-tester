@@ -24,8 +24,7 @@ processors:
     schedulingPeriod: "1 sec"
     properties:
       Script: |
-        import org.apache.nifi.processor.FlowFile
-        import org.apache.nifi.flowfile.attributes.FlowFileAttributeKey
+        import org.apache.nifi.flowfile.FlowFile
         import java.nio.charset.StandardCharsets
         
         FlowFile flowFile = context.get()
