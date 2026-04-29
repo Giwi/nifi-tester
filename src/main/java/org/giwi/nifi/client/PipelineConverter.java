@@ -3,6 +3,8 @@ package org.giwi.nifi.client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,6 +24,7 @@ import java.util.*;
  * @version 1.0-SNAPSHOT
  */
 public class PipelineConverter {
+    private static final Logger log = LoggerFactory.getLogger(PipelineConverter.class);
     private final ObjectMapper mapper;
 
     public PipelineConverter() {
@@ -55,6 +58,7 @@ public class PipelineConverter {
     @SuppressWarnings("unchecked")
     public Map<String, Object> convertFromMap(Map<String, Object> yaml) {
         Map<String, Object> result = new HashMap<>();
+        log.debug("Converting pipeline: {}", yaml.getOrDefault("name", "Untitled"));
 
         result.put("id", generateUuid());
         result.put("name", getString(yaml, "name", "Untitled Pipeline"));
@@ -62,30 +66,37 @@ public class PipelineConverter {
 
         if (yaml.containsKey("processors")) {
             result.put("processors", convertProcessors((List<Map<String, Object>>) yaml.get("processors")));
+            log.debug("Converted {} processors", ((List<?>) yaml.get("processors")).size());
         }
 
         if (yaml.containsKey("connections")) {
             result.put("connections", convertConnections((List<Map<String, Object>>) yaml.get("connections")));
+            log.debug("Converted {} connections", ((List<?>) yaml.get("connections")).size());
         }
 
         if (yaml.containsKey("inputPorts")) {
             result.put("inputPorts", convertInputPorts((List<Map<String, Object>>) yaml.get("inputPorts")));
+            log.debug("Converted {} input ports", ((List<?>) yaml.get("inputPorts")).size());
         }
 
         if (yaml.containsKey("outputPorts")) {
             result.put("outputPorts", convertOutputPorts((List<Map<String, Object>>) yaml.get("outputPorts")));
+            log.debug("Converted {} output ports", ((List<?>) yaml.get("outputPorts")).size());
         }
 
         if (yaml.containsKey("processGroups")) {
             result.put("processGroups", convertProcessGroups((List<Map<String, Object>>) yaml.get("processGroups")));
+            log.debug("Converted {} process groups", ((List<?>) yaml.get("processGroups")).size());
         }
 
         if (yaml.containsKey("remoteProcessGroups")) {
             result.put("remoteProcessGroups", convertRemoteProcessGroups((List<Map<String, Object>>) yaml.get("remoteProcessGroups")));
+            log.debug("Converted {} remote process groups", ((List<?>) yaml.get("remoteProcessGroups")).size());
         }
 
         if (yaml.containsKey("funnels")) {
             result.put("funnels", convertFunnels((List<Map<String, Object>>) yaml.get("funnels")));
+            log.debug("Converted {} funnels", ((List<?>) yaml.get("funnels")).size());
         }
 
         return result;

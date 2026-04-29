@@ -3,6 +3,8 @@ package org.giwi.nifi.client;
 import org.giwi.nifi.client.api.*;
 import org.giwi.nifi.client.invoker.ApiClient;
 import org.giwi.nifi.client.model.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 public class PipelineTester {
+    private static final Logger log = LoggerFactory.getLogger(PipelineTester.class);
+    
     private final ApiClient client;
     private final PipelineConverter converter;
     private String accessToken;
@@ -83,6 +87,7 @@ public class PipelineTester {
         String token = accessApi.createAccessToken(password, username);
         this.accessToken = token;
         this.client.addDefaultHeader("Authorization", "Bearer " + token);
+        log.info("Logged in to NiFi as user: {}", username);
     }
 
     /**
@@ -128,6 +133,7 @@ public class PipelineTester {
             assert createdPg.getComponent() != null;
             String newPgId = createdPg.getComponent().getId();
             result.setProcessGroupId(newPgId);
+            log.info("Created process group: {} ({})", pipelineData.getOrDefault("name", "Untitled"), newPgId);
 
             // Create processors
             if (pipelineData.containsKey("processors")) {
@@ -176,6 +182,7 @@ public class PipelineTester {
                     ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
                     if (connEntity != null) {
                         pgApi.createConnection(newPgId, connEntity);
+                        log.debug("Created connection: {}", conn.getOrDefault("name", "unnamed"));
                     }
                 }
             }
@@ -184,11 +191,12 @@ public class PipelineTester {
             autoTerminateUnconnectedRelationships(pgApi, newPgId, processorIdMap, pipelineData);
 
             result.setSuccess(true);
+            log.info("Pipeline deployed successfully: {} ({})", pipelineData.getOrDefault("name", "Untitled"), newPgId);
             result.setMessage("Pipeline deployed successfully: " + newPgId);
         } catch (Exception e) {
             result.setSuccess(false);
             result.setMessage("Deployment failed: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Pipeline deployment failed: {}", e.getMessage(), e);
         }
 
         return result;
@@ -247,6 +255,7 @@ public class PipelineTester {
                     String relName = rel.getName();
                     if (!connected.contains(relName) && !autoTerminated.contains(relName)) {
                         autoTerminated.add(relName);
+                        log.debug("Auto-terminating relationship: {} for processor: {}", relName, procName);
                         needsUpdate = true;
                     }
                 }
@@ -478,6 +487,7 @@ public class PipelineTester {
         try {
             ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
             pgApi.removeProcessGroup(processGroupId, null, null, null);
+            log.info("Deleted process group: {}", processGroupId);
             return true;
         } catch (Exception e) {
             return false;
@@ -624,6 +634,7 @@ public class PipelineTester {
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
         assert procEntity.getComponent() != null;
         procEntity.getComponent().setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.RUNNING);
+        log.info("Started processor: {}", processorId);
         procApi.updateProcessor(processorId, procEntity);
     }
 
@@ -635,6 +646,7 @@ public class PipelineTester {
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
         assert procEntity.getComponent() != null;
         procEntity.getComponent().setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.STOPPED);
+        log.info("Stopped processor: {}", processorId);
         procApi.updateProcessor(processorId, procEntity);
     }
 
@@ -647,6 +659,8 @@ public class PipelineTester {
         schedule.setState(org.giwi.nifi.client.model.ScheduleComponentsEntity.StateEnum.RUNNING);
         schedule.setId(processGroupId);
         flowApi.scheduleComponents(processGroupId, schedule);
+        log.info("Stopped process group: {}", processGroupId);
+        log.info("Started process group: {}", processGroupId);
     }
 
     /**
@@ -658,6 +672,8 @@ public class PipelineTester {
         schedule.setState(org.giwi.nifi.client.model.ScheduleComponentsEntity.StateEnum.STOPPED);
         schedule.setId(processGroupId);
         flowApi.scheduleComponents(processGroupId, schedule);
+        log.info("Stopped process group: {}", processGroupId);
+        log.info("Started process group: {}", processGroupId);
     }
 
     /**
