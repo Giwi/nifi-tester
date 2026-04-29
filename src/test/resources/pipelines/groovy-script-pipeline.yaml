@@ -1,0 +1,72 @@
+name: Groovy Script Pipeline
+description: A pipeline that uses Groovy script to append 'world' to 'hello'
+parentGroupId: root
+
+processors:
+  - name: GenerateHello
+    type: org.apache.nifi.processors.standard.GenerateFlowFile
+    x: 100
+    y: 100
+    state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 sec"
+    properties:
+      Data Format: Text
+      Custom Text: "hello"
+      File Size: 0B
+
+  - name: AppendWorld
+    type: org.apache.nifi.processors.groovy.ExecuteGroovyScript
+    x: 400
+    y: 100
+    state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 sec"
+    properties:
+      Script: |
+        import org.apache.nifi.processor.FlowFile
+        import org.apache.nifi.flowfile.attributes.FlowFileAttributeKey
+        import java.nio.charset.StandardCharsets
+        
+        FlowFile flowFile = session.get()
+        if (flowFile != null) {
+            String content = ""
+            flowFile.read { inputStream ->
+                content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8)
+            }
+            content = content + " world"
+            flowFile = session.write(flowFile, { outputStream ->
+                outputStream.write(content.getBytes(StandardCharsets.UTF_8))
+            })
+            session.transfer(flowFile, REL_SUCCESS)
+        }
+
+  - name: LogResult
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 700
+    y: 100
+    state: RUNNING
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 sec"
+    properties:
+      Log Level: info
+      Log Prefix: "Result: "
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  - name: Hello to Groovy
+    sourceId: ${GenerateHello}
+    destinationId: ${AppendWorld}
+    relationships:
+      - success
+    x: 250
+    y: 100
+
+  - name: Groovy to Log
+    sourceId: ${AppendWorld}
+    destinationId: ${LogResult}
+    relationships:
+      - success
+    x: 550
+    y: 100
