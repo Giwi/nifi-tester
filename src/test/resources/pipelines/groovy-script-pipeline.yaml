@@ -28,17 +28,17 @@ processors:
         import org.apache.nifi.flowfile.attributes.FlowFileAttributeKey
         import java.nio.charset.StandardCharsets
         
-        FlowFile flowFile = session.get()
+        FlowFile flowFile = context.get()
         if (flowFile != null) {
             String content = ""
-            flowFile.read { inputStream ->
+            context.read(flowFile, { inputStream ->
                 content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8)
-            }
+            })
             content = content + " world"
-            flowFile = session.write(flowFile, { outputStream ->
+            flowFile = context.write(flowFile, { outputStream ->
                 outputStream.write(content.getBytes(StandardCharsets.UTF_8))
             })
-            session.transfer(flowFile, REL_SUCCESS)
+            context.transfer(flowFile, REL_SUCCESS)
         }
 
   - name: LogResult
