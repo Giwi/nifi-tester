@@ -23,7 +23,7 @@ processors:
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "1 sec"
     properties:
-      Script: |
+      Script Body: |
         import org.apache.nifi.flowfile.FlowFile
         import java.nio.charset.StandardCharsets
         
