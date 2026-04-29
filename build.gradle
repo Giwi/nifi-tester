@@ -25,6 +25,8 @@ dependencies {
     implementation 'javax.annotation:javax.annotation-api:1.3.2'
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers:1.19.7'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -49,4 +51,12 @@ openApiGenerate {
 
 test {
     useJUnitPlatform()
+    // Exclude integration tests from standard test run
+    exclude '**/*IntegrationTest.class'
+}
+
+task integrationTest(type: Test) {
+    useJUnitPlatform()
+    include '**/*IntegrationTest.class'
+    shouldRunAfter test
 }

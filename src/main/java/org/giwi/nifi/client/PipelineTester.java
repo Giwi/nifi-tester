@@ -113,6 +113,8 @@ public class PipelineTester {
     public PipelineTesterResult deployPipeline(Map<String, Object> pipelineData, String parentGroupId) {
         PipelineTesterResult result = new PipelineTesterResult();
         Map<String, String> processorIdMap = new HashMap<>();
+        Map<String, String> inputPortIdMap = new HashMap<>();
+        Map<String, String> outputPortIdMap = new HashMap<>();
 
         try {
             ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
@@ -130,19 +132,52 @@ public class PipelineTester {
             pgEntity.setComponent(pgDto);
 
             ProcessGroupEntity createdPg = pgApi.createProcessGroup(rootGroupId, pgEntity, null);
-            assert createdPg.getComponent() != null;
+            java.util.Objects.requireNonNull(createdPg.getComponent(), "Failed to create process group");
             String newPgId = createdPg.getComponent().getId();
             result.setProcessGroupId(newPgId);
             log.info("Created process group: {} ({})", pipelineData.getOrDefault("name", "Untitled"), newPgId);
 
-            // Create processors
-            if (pipelineData.containsKey("processors")) {
-                List<Map<String, Object>> processors = (List<Map<String, Object>>) pipelineData.get("processors");
-                for (Map<String, Object> procWrapper : processors) {
-                    ProcessorEntity procEntity = createProcessorEntity(procWrapper, newPgId);
-                    ProcessorEntity created = pgApi.createProcessor(newPgId, procEntity);
-                    assert created.getComponent() != null;
-                    String procId = created.getComponent().getId();
+            try {
+                // Create input ports
+                if (pipelineData.containsKey("inputPorts")) {
+                    List<Map<String, Object>> ports = (List<Map<String, Object>>) pipelineData.get("inputPorts");
+                    for (Map<String, Object> portWrapper : ports) {
+                        PortEntity portEntity = createPortEntity(portWrapper, newPgId, org.giwi.nifi.client.model.PortDTO.TypeEnum.INPUT_PORT);
+                        PortEntity created = pgApi.createInputPort(newPgId, portEntity);
+                        java.util.Objects.requireNonNull(created.getComponent(), "Failed to create input port");
+                        String portId = created.getComponent().getId();
+                    Map<String, Object> port = portWrapper;
+                    if (portWrapper.containsKey("port")) {
+                        port = (Map<String, Object>) portWrapper.get("port");
+                    }
+                    inputPortIdMap.put((String) port.get("name"), portId);
+                }
+            }
+
+                // Create output ports
+                if (pipelineData.containsKey("outputPorts")) {
+                    List<Map<String, Object>> ports = (List<Map<String, Object>>) pipelineData.get("outputPorts");
+                    for (Map<String, Object> portWrapper : ports) {
+                        PortEntity portEntity = createPortEntity(portWrapper, newPgId, org.giwi.nifi.client.model.PortDTO.TypeEnum.OUTPUT_PORT);
+                        PortEntity created = pgApi.createOutputPort(newPgId, portEntity);
+                        java.util.Objects.requireNonNull(created.getComponent(), "Failed to create output port");
+                        String portId = created.getComponent().getId();
+                    Map<String, Object> port = portWrapper;
+                    if (portWrapper.containsKey("port")) {
+                        port = (Map<String, Object>) portWrapper.get("port");
+                    }
+                    outputPortIdMap.put((String) port.get("name"), portId);
+                }
+            }
+
+                // Create processors
+                if (pipelineData.containsKey("processors")) {
+                    List<Map<String, Object>> processors = (List<Map<String, Object>>) pipelineData.get("processors");
+                    for (Map<String, Object> procWrapper : processors) {
+                        ProcessorEntity procEntity = createProcessorEntity(procWrapper, newPgId);
+                        ProcessorEntity created = pgApi.createProcessor(newPgId, procEntity);
+                        java.util.Objects.requireNonNull(created.getComponent(), "Failed to create processor");
+                        String procId = created.getComponent().getId();
                     Map<String, Object> proc = procWrapper;
                     if (procWrapper.containsKey("processor")) {
                         proc = (Map<String, Object>) procWrapper.get("processor");
@@ -179,7 +214,7 @@ public class PipelineTester {
                     if (connWrapper.containsKey("connection")) {
                         conn = (Map<String, Object>) connWrapper.get("connection");
                     }
-                    ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap);
+                    ConnectionEntity connEntity = createConnectionEntity(conn, newPgId, processorIdMap, inputPortIdMap, outputPortIdMap);
                     if (connEntity != null) {
                         pgApi.createConnection(newPgId, connEntity);
                         log.debug("Created connection: {}", conn.getOrDefault("name", "unnamed"));
@@ -187,12 +222,21 @@ public class PipelineTester {
                 }
             }
 
-            // Auto-terminate unconnected relationships
-            autoTerminateUnconnectedRelationships(pgApi, newPgId, processorIdMap, pipelineData);
+                // Auto-terminate unconnected relationships
+                autoTerminateUnconnectedRelationships(pgApi, newPgId, processorIdMap, pipelineData);
 
-            result.setSuccess(true);
-            log.info("Pipeline deployed successfully: {} ({})", pipelineData.getOrDefault("name", "Untitled"), newPgId);
-            result.setMessage("Pipeline deployed successfully: " + newPgId);
+                result.setSuccess(true);
+                log.info("Pipeline deployed successfully: {} ({})", pipelineData.getOrDefault("name", "Untitled"), newPgId);
+                result.setMessage("Pipeline deployed successfully: " + newPgId);
+            } catch (Exception innerEx) {
+                log.error("Pipeline deployment failed during component creation. Rolling back process group: {}", newPgId, innerEx);
+                try {
+                    deleteProcessGroup(newPgId);
+                } catch (Exception rollbackEx) {
+                    log.error("Rollback failed for process group: {}", newPgId, rollbackEx);
+                }
+                throw innerEx;
+            }
         } catch (Exception e) {
             result.setSuccess(false);
             result.setMessage("Deployment failed: " + e.getMessage());
@@ -266,7 +310,7 @@ public class PipelineTester {
 
                     // Update revision
                     procEntity.getComponent().setConfig(procDTO.getConfig());
-                    assert procEntity.getRevision() != null;
+                    java.util.Objects.requireNonNull(procEntity.getRevision(), "Processor revision cannot be null");
                     procEntity.getRevision().setVersion(procEntity.getRevision().getVersion());
 
                     procApi.updateProcessor(procId, procEntity);
@@ -318,7 +362,7 @@ public class PipelineTester {
                 props.put(entry.getKey(), String.valueOf(entry.getValue()));
             }
             dto.setConfig(new org.giwi.nifi.client.model.ProcessorConfigDTO());
-            assert dto.getConfig() != null;
+            java.util.Objects.requireNonNull(dto.getConfig(), "Processor Config cannot be null");
             dto.getConfig().setProperties(props);
         } else {
             dto.setConfig(new org.giwi.nifi.client.model.ProcessorConfigDTO());
@@ -351,8 +395,9 @@ public class PipelineTester {
         // Set auto-terminated relationships
         if (dtoMap.containsKey("autoTerminatedRelationships")) {
             List<String> rels = (List<String>) dtoMap.get("autoTerminatedRelationships");
-            assert dto.getConfig() != null;
-            dto.getConfig().setAutoTerminatedRelationships(new java.util.LinkedHashSet<>(rels));
+            if (dto.getConfig() != null) {
+                dto.getConfig().setAutoTerminatedRelationships(new java.util.LinkedHashSet<>(rels));
+            }
         }
 
         // Set state
@@ -369,10 +414,47 @@ public class PipelineTester {
         return entity;
     }
 
+    private PortEntity createPortEntity(Map<String, Object> portWrapper, String parentGroupId, org.giwi.nifi.client.model.PortDTO.TypeEnum portType) {
+        Map<String, Object> portMap = portWrapper;
+        if (portWrapper.containsKey("port")) {
+            portMap = (Map<String, Object>) portWrapper.get("port");
+        }
+
+        PortEntity entity = new PortEntity();
+        org.giwi.nifi.client.model.PortDTO dto = new org.giwi.nifi.client.model.PortDTO();
+        dto.setParentGroupId(parentGroupId);
+        dto.setName((String) portMap.getOrDefault("name", portType == org.giwi.nifi.client.model.PortDTO.TypeEnum.INPUT_PORT ? "Input Port" : "Output Port"));
+        dto.setType(portType);
+        
+        if (portType == org.giwi.nifi.client.model.PortDTO.TypeEnum.INPUT_PORT) {
+            dto.setAllowRemoteAccess(true);
+        }
+
+        if (portMap.containsKey("position")) {
+            Map<String, Object> posMap = (Map<String, Object>) portMap.get("position");
+            PositionDTO pos = new PositionDTO();
+            pos.setX(((Number) posMap.getOrDefault("x", 0)).doubleValue());
+            pos.setY(((Number) posMap.getOrDefault("y", 0)).doubleValue());
+            dto.setPosition(pos);
+        } else if (portMap.containsKey("x") || portMap.containsKey("y")) {
+            PositionDTO pos = new PositionDTO();
+            pos.setX(((Number) portMap.getOrDefault("x", 0)).doubleValue());
+            pos.setY(((Number) portMap.getOrDefault("y", 0)).doubleValue());
+            dto.setPosition(pos);
+        }
+
+        RevisionDTO revision = new RevisionDTO();
+        revision.setVersion(0L);
+        entity.setRevision(revision);
+        entity.setComponent(dto);
+
+        return entity;
+    }
+
     private BundleDTO getBundleForProcessorType(String type) {
         BundleDTO bundle = new BundleDTO();
         bundle.setGroup("org.apache.nifi");
-        bundle.setVersion("2.9.0");
+        bundle.setVersion("2.0.0-M2");
 
         // Determine artifact based on processor type - check specific types first
         if (type != null) {
@@ -398,7 +480,8 @@ public class PipelineTester {
         return bundle;
     }
 
-    private ConnectionEntity createConnectionEntity(Map<String, Object> conn, String parentGroupId, Map<String, String> processorIdMap) {
+    private ConnectionEntity createConnectionEntity(Map<String, Object> conn, String parentGroupId, 
+            Map<String, String> processorIdMap, Map<String, String> inputPortIdMap, Map<String, String> outputPortIdMap) {
         // Handle both flat YAML format and converted format
         Map<String, Object> connMap = conn;
         if (conn.containsKey("connection")) {
@@ -414,18 +497,43 @@ public class PipelineTester {
         String sourceName = extractIdFromRef((String) connMap.get("sourceId"));
         String destName = extractIdFromRef((String) connMap.get("destinationId"));
 
-        String sourceId = processorIdMap.getOrDefault(sourceName, sourceName);
-        String destId = processorIdMap.getOrDefault(destName, destName);
+        // Determine source type and ID
+        String sourceId;
+        ConnectableDTO.TypeEnum sourceType;
+        if (inputPortIdMap.containsKey(sourceName)) {
+            sourceId = inputPortIdMap.get(sourceName);
+            sourceType = ConnectableDTO.TypeEnum.INPUT_PORT;
+        } else if (outputPortIdMap.containsKey(sourceName)) {
+            sourceId = outputPortIdMap.get(sourceName);
+            sourceType = ConnectableDTO.TypeEnum.OUTPUT_PORT;
+        } else {
+            sourceId = processorIdMap.getOrDefault(sourceName, sourceName);
+            sourceType = ConnectableDTO.TypeEnum.PROCESSOR;
+        }
+
+        // Determine destination type and ID
+        String destId;
+        ConnectableDTO.TypeEnum destType;
+        if (inputPortIdMap.containsKey(destName)) {
+            destId = inputPortIdMap.get(destName);
+            destType = ConnectableDTO.TypeEnum.INPUT_PORT;
+        } else if (outputPortIdMap.containsKey(destName)) {
+            destId = outputPortIdMap.get(destName);
+            destType = ConnectableDTO.TypeEnum.OUTPUT_PORT;
+        } else {
+            destId = processorIdMap.getOrDefault(destName, destName);
+            destType = ConnectableDTO.TypeEnum.PROCESSOR;
+        }
 
         ConnectableDTO source = new ConnectableDTO();
         source.setId(sourceId);
-        source.setType(ConnectableDTO.TypeEnum.PROCESSOR);
+        source.setType(sourceType);
         source.setGroupId(parentGroupId);
         dto.setSource(source);
 
         ConnectableDTO dest = new ConnectableDTO();
         dest.setId(destId);
-        dest.setType(ConnectableDTO.TypeEnum.PROCESSOR);
+        dest.setType(destType);
         dest.setGroupId(parentGroupId);
         dto.setDestination(dest);
 
@@ -512,8 +620,7 @@ public class PipelineTester {
         ProcessorsEntity processors = pgApi.getProcessors(processGroupId, false);
         if (processors.getProcessors() != null) {
             for (ProcessorEntity proc : processors.getProcessors()) {
-                assert proc.getComponent() != null;
-                if (processorName.equals(proc.getComponent().getName())) {
+                if (proc.getComponent() != null && processorName.equals(proc.getComponent().getName())) {
                     return proc.getComponent().getId();
                 }
             }
@@ -564,17 +671,24 @@ public class PipelineTester {
         return result;
     }
 
-    /**
-     * Find an input port ID by name
-     */
-    public String findInputPortIdByName(String processGroupId, String portName) {
+    private String findPortIdByName(String processGroupId, String portName, boolean isInput) {
         ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
-        InputPortsEntity ports = pgApi.getInputPorts(processGroupId);
-        if (ports.getInputPorts() != null) {
-            for (org.giwi.nifi.client.model.PortEntity port : ports.getInputPorts()) {
-                assert port.getComponent() != null;
-                if (portName.equals(port.getComponent().getName())) {
-                    return port.getComponent().getId();
+        if (isInput) {
+            InputPortsEntity ports = pgApi.getInputPorts(processGroupId);
+            if (ports.getInputPorts() != null) {
+                for (org.giwi.nifi.client.model.PortEntity port : ports.getInputPorts()) {
+                    if (port.getComponent() != null && portName.equals(port.getComponent().getName())) {
+                        return port.getComponent().getId();
+                    }
+                }
+            }
+        } else {
+            OutputPortsEntity ports = pgApi.getOutputPorts(processGroupId);
+            if (ports.getOutputPorts() != null) {
+                for (org.giwi.nifi.client.model.PortEntity port : ports.getOutputPorts()) {
+                    if (port.getComponent() != null && portName.equals(port.getComponent().getName())) {
+                        return port.getComponent().getId();
+                    }
                 }
             }
         }
@@ -582,20 +696,17 @@ public class PipelineTester {
     }
 
     /**
+     * Find an input port ID by name
+     */
+    public String findInputPortIdByName(String processGroupId, String portName) {
+        return findPortIdByName(processGroupId, portName, true);
+    }
+
+    /**
      * Find an output port ID by name
      */
     public String findOutputPortIdByName(String processGroupId, String portName) {
-        ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
-        OutputPortsEntity ports = pgApi.getOutputPorts(processGroupId);
-        if (ports.getOutputPorts() != null) {
-            for (org.giwi.nifi.client.model.PortEntity port : ports.getOutputPorts()) {
-                assert port.getComponent() != null;
-                if (portName.equals(port.getComponent().getName())) {
-                    return port.getComponent().getId();
-                }
-            }
-        }
-        return null;
+        return findPortIdByName(processGroupId, portName, false);
     }
 
     /**
@@ -636,7 +747,7 @@ public class PipelineTester {
     public void startProcessor(String processorId) {
         ProcessorsApi procApi = new ProcessorsApi(client);
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
-        assert procEntity.getComponent() != null;
+        java.util.Objects.requireNonNull(procEntity.getComponent(), "Processor component cannot be null");
         procEntity.getComponent().setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.RUNNING);
         log.info("Started processor: {}", processorId);
         procApi.updateProcessor(processorId, procEntity);
@@ -648,7 +759,7 @@ public class PipelineTester {
     public void stopProcessor(String processorId) {
         ProcessorsApi procApi = new ProcessorsApi(client);
         ProcessorEntity procEntity = procApi.getProcessor(processorId);
-        assert procEntity.getComponent() != null;
+        java.util.Objects.requireNonNull(procEntity.getComponent(), "Processor component cannot be null");
         procEntity.getComponent().setState(org.giwi.nifi.client.model.ProcessorDTO.StateEnum.STOPPED);
         log.info("Stopped processor: {}", processorId);
         procApi.updateProcessor(processorId, procEntity);
@@ -662,8 +773,8 @@ public class PipelineTester {
         org.giwi.nifi.client.model.ScheduleComponentsEntity schedule = new org.giwi.nifi.client.model.ScheduleComponentsEntity();
         schedule.setState(org.giwi.nifi.client.model.ScheduleComponentsEntity.StateEnum.RUNNING);
         schedule.setId(processGroupId);
+        schedule.setComponents(null);
         flowApi.scheduleComponents(processGroupId, schedule);
-        log.info("Stopped process group: {}", processGroupId);
         log.info("Started process group: {}", processGroupId);
     }
 
@@ -675,9 +786,9 @@ public class PipelineTester {
         org.giwi.nifi.client.model.ScheduleComponentsEntity schedule = new org.giwi.nifi.client.model.ScheduleComponentsEntity();
         schedule.setState(org.giwi.nifi.client.model.ScheduleComponentsEntity.StateEnum.STOPPED);
         schedule.setId(processGroupId);
+        schedule.setComponents(null);
         flowApi.scheduleComponents(processGroupId, schedule);
         log.info("Stopped process group: {}", processGroupId);
-        log.info("Started process group: {}", processGroupId);
     }
 
     /**
@@ -727,21 +838,28 @@ public class PipelineTester {
         ListingRequestEntity listing = queueApi.createFlowFileListing(connectionId);
 
         // Wait for listing to complete
-        assert listing.getListingRequest() != null;
+        java.util.Objects.requireNonNull(listing.getListingRequest(), "Listing request cannot be null");
         String listingId = listing.getListingRequest().getId();
         while (true) {
-            assert listing.getListingRequest() != null;
-            if (!(!"COMPLETE".equals(listing.getListingRequest().getState()) &&
-                            !"FAILURE".equals(listing.getListingRequest().getState()))) break;
+            java.util.Objects.requireNonNull(listing.getListingRequest(), "Listing request cannot be null");
+            if ("COMPLETE".equals(listing.getListingRequest().getState()) ||
+                "FAILURE".equals(listing.getListingRequest().getState())) {
+                break;
+            }
             Thread.sleep(200);
             listing = queueApi.getListingRequest(connectionId, listingId);
         }
 
+        List<org.giwi.nifi.client.model.FlowFileSummaryDTO> summaries = new ArrayList<>();
         if ("COMPLETE".equals(listing.getListingRequest().getState()) &&
                 listing.getListingRequest().getFlowFileSummaries() != null) {
-            return listing.getListingRequest().getFlowFileSummaries();
+            summaries.addAll(listing.getListingRequest().getFlowFileSummaries());
         }
-        return new ArrayList<>();
+        
+        // Always delete the listing request to avoid leaks
+        queueApi.deleteListingRequest(connectionId, listingId);
+        
+        return summaries;
     }
 
     /**
@@ -809,6 +927,57 @@ public class PipelineTester {
         FlowFileQueuesApi queueApi = new FlowFileQueuesApi(client);
         queueApi.createDropRequest(connectionId);
         // Note: Should wait for drop to complete in production code
+    }
+
+    /**
+     * Inject a flow file with the given content into an input port
+     */
+    public void injectFlowFile(String inputPortId, String content) throws Exception {
+        System.out.println("DEBUG: Starting injectFlowFile");
+        client.addDefaultHeader("x-nifi-site-to-site-protocol-version", "1");
+        
+        DataTransferApi dataTransferApi = new DataTransferApi(client);
+
+        System.out.println("DEBUG: Calling createPortTransaction");
+        // Create a transaction and get the ID from the Location header
+        org.springframework.http.ResponseEntity<org.giwi.nifi.client.model.TransactionResultEntity> response = 
+            dataTransferApi.createPortTransactionWithHttpInfo("input-ports", inputPortId, null);
+            
+        String location = response.getHeaders().getFirst("Location");
+        if (location == null) {
+            throw new Exception("Failed to get transaction location from NiFi");
+        }
+        String transactionId = location.substring(location.lastIndexOf('/') + 1);
+        System.out.println("DEBUG: Transaction ID = " + transactionId);
+
+        // Format content as Site-To-Site V1 DataPacket
+        byte[] contentBytes = content.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        java.io.DataOutputStream dos = new java.io.DataOutputStream(baos);
+        // 0 attributes
+        dos.writeInt(0);
+        // Content length
+        dos.writeLong(contentBytes.length);
+        // Content bytes
+        dos.write(contentBytes);
+        dos.flush();
+
+        System.out.println("DEBUG: Calling receiveFlowFiles");
+        // Send the flow file content
+        dataTransferApi.receiveFlowFiles(inputPortId, transactionId, baos.toByteArray());
+        System.out.println("DEBUG: Returned from receiveFlowFiles");
+
+        System.out.println("DEBUG: Calling commitInputPortTransaction");
+        // Commit the transaction (12 = CONFIRM_TRANSACTION)
+        dataTransferApi.commitInputPortTransaction(12, inputPortId, transactionId, null);
+        System.out.println("DEBUG: Returned from commitInputPortTransaction");
+    }
+
+    /**
+     * Find an input port by name in a process group
+     */
+    public String findInputPortId(String processGroupId, String portName) {
+        return findPortIdByName(processGroupId, portName, true);
     }
 
     // ==================== END TESTING UTILITIES ====================

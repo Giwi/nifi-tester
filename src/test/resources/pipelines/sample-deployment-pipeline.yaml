@@ -7,7 +7,6 @@ processors:
     type: org.apache.nifi.processors.standard.GenerateFlowFile
     x: 100
     y: 100
-    state: RUNNING
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "10 sec"
     concurrentlySchedulableTaskCount: 1
@@ -22,7 +21,6 @@ processors:
     type: org.apache.nifi.processors.standard.ExtractText
     x: 400
     y: 100
-    state: RUNNING
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "5 sec"
     properties:
@@ -32,7 +30,6 @@ processors:
     type: org.apache.nifi.processors.standard.RouteOnContent
     x: 700
     y: 100
-    state: RUNNING
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "3 sec"
     properties:
@@ -45,7 +42,6 @@ processors:
     type: org.apache.nifi.processors.standard.LogAttribute
     x: 1000
     y: 100
-    state: RUNNING
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "1 sec"
     properties:
@@ -60,7 +56,6 @@ processors:
     type: org.apache.nifi.processors.standard.CompressContent
     x: 1000
     y: 300
-    state: STOPPED
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "30 sec"
     properties:
@@ -71,7 +66,6 @@ processors:
     type: org.apache.nifi.processors.standard.PutFile
     x: 1300
     y: 200
-    state: STOPPED
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "60 sec"
     properties:

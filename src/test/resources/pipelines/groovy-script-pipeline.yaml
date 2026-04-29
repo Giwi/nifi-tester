@@ -2,24 +2,16 @@ name: Groovy Script Pipeline
 description: A pipeline that uses Groovy script to append 'world' to 'hello'
 parentGroupId: root
 
-processors:
-  - name: GenerateHello
-    type: org.apache.nifi.processors.standard.GenerateFlowFile
+inputPorts:
+  - name: Input
     x: 100
     y: 100
-    state: RUNNING
-    schedulingStrategy: TIMER_DRIVEN
-    schedulingPeriod: "1 sec"
-    properties:
-      Data Format: Text
-      Custom Text: "hello"
-      File Size: 0B
 
+processors:
   - name: AppendWorld
     type: org.apache.nifi.processors.groovyx.ExecuteGroovyScript
     x: 400
     y: 100
-    state: RUNNING
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "1 sec"
     properties:
@@ -44,7 +36,6 @@ processors:
     type: org.apache.nifi.processors.standard.LogAttribute
     x: 700
     y: 100
-    state: RUNNING
     schedulingStrategy: TIMER_DRIVEN
     schedulingPeriod: "1 sec"
     properties:
@@ -54,11 +45,9 @@ processors:
       - success
 
 connections:
-  - name: Hello to Groovy
-    sourceId: ${GenerateHello}
+  - name: Input to Groovy
+    sourceId: ${Input}
     destinationId: ${AppendWorld}
-    relationships:
-      - success
     x: 250
     y: 100
 

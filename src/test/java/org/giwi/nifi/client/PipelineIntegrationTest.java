@@ -10,7 +10,6 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled("Integration tests require a running NiFi instance")
 class PipelineIntegrationTest {
 
     private PipelineConverter converter;
