@@ -73,6 +73,74 @@ if (result.isSuccess()) {
 
 ## Pipeline YAML Format
 
+Full YAML schema with all supported fields:
+
+```yaml
+name: My Pipeline              # (Required) Pipeline name
+parentGroupId: root             # (Optional) Parent process group ID (default: "root")
+
+processors:                       # (Optional) List of processors
+  - name: GenerateFlowFile        # (Required) Unique processor name
+    type: org.apache.nifi.processors.standard.GenerateFlowFile  # (Required) Processor type
+    x: 100                       # (Optional) X coordinate (default: 0)
+    y: 100                       # (Optional) Y coordinate (default: 0)
+    schedulingStrategy: TIMER_DRIVEN  # (Optional) TIMER_DRIVEN, CRON_DRIVEN, PRIMARY_NODE_ONLY
+    schedulingPeriod: "1 sec"        # (Optional) e.g., "1 sec", "5 mins"
+    concurrentlySchedulableTaskCount: 1 # (Optional) Number of concurrent tasks
+    runDurationMillis: 0           # (Optional) Run duration in milliseconds
+    state: STOPPED                 # (Optional) STOPPED or RUNNING (default: STOPPED)
+    autoTerminatedRelationships:      # (Optional) Relationships to auto-terminate
+      - success
+    properties:                    # (Optional) Processor-specific properties
+      File Size: 1KB
+      Text: Hello World
+
+connections:                       # (Optional) List of connections
+  - name: To Log                  # (Optional) Connection name
+    sourceId: ${GenerateFlowFile}   # (Required) Source processor name (use ${name})
+    destinationId: ${LogAttribute}    # (Required) Destination processor name
+    relationships:                  # (Required) Relationships to connect
+      - success
+    flowFileExpiration: "0 ms"        # (Optional) Default: "0 ms"
+    backPressureDataSizeThreshold: "1 GB" # (Optional) Default: "1 GB"
+    backPressureObjectThreshold: 10000    # (Optional) Default: 10000
+    x: 200                         # (Optional) Connection label X position
+    y: 150                         # (Optional) Connection label Y position
+    bends:                          # (Optional) Control points for connection line
+      - x: 150
+        y: 125
+      - x: 175
+        y: 140
+
+funnels:                           # (Optional) List of funnels
+  - name: MyFunnel
+    x: 200
+    y: 200
+
+inputPorts:                        # (Optional) Input ports
+  - name: Input
+    x: 50
+    y: 100
+
+outputPorts:                       # (Optional) Output ports
+  - name: Output
+    x: 400
+    y: 100
+
+processGroups:                      # (Optional) Nested process groups
+  - name: SubProcessGroup
+    x: 300
+    y: 300
+
+remoteProcessGroups:                 # (Optional) Remote process groups
+  - name: RemoteGroup
+    targetUris: http://remote-nifi:8080/nifi-api
+    x: 500
+    y: 500
+```
+
+Example:
+
 ```yaml
 name: My Pipeline
 parentGroupId: root
