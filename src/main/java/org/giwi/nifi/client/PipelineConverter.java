@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Converts YAML pipeline definitions to NiFi API format and vice versa.
@@ -423,6 +424,265 @@ public class PipelineConverter {
      */
     public String convertToYaml(Map<String, Object> pipeline) throws IOException {
         return mapper.writeValueAsString(pipeline);
+    }
+
+    /**
+     * Converts a NiFi JSON export file to YAML format.
+     *
+     * <p>NiFi exports (from UI or /process-groups/{id}/download) contain a flow object
+     * with processors, connections, etc. This method extracts and converts them to
+     * the simplified YAML format used by this project.</p>
+     *
+     * @param jsonFile The NiFi JSON export file
+     * @return YAML string representation of the pipeline
+     * @throws IOException if the file cannot be read or parsed
+     */
+    @SuppressWarnings("unchecked")
+    public String convertNiFiJsonToYaml(File jsonFile) throws IOException {
+        ObjectMapper jsonMapper = new ObjectMapper();
+        Map<String, Object> nifiExport = jsonMapper.readValue(jsonFile, new TypeReference<>() {});
+
+        Map<String, Object> yamlPipeline = new HashMap<>();
+
+        // Extract flow from NiFi export (handle both direct flow and nested structure)
+        Map<String, Object> flow = null;
+        if (nifiExport.containsKey("flow")) {
+            flow = (Map<String, Object>) nifiExport.get("flow");
+        } else {
+            flow = nifiExport;
+        }
+
+        // Get process group name from breadcrumb or use default
+        String pipelineName = "Imported Pipeline";
+        if (nifiExport.containsKey("breadcrumb")) {
+            Map<String, Object> breadcrumb = (Map<String, Object>) nifiExport.get("breadcrumb");
+            if (breadcrumb.containsKey("permissions") && breadcrumb.containsKey("component")) {
+                Map<String, Object> component = (Map<String, Object>) breadcrumb.get("component");
+                if (component.containsKey("name")) {
+                    pipelineName = component.get("name").toString();
+                }
+            }
+        }
+        yamlPipeline.put("name", pipelineName);
+        yamlPipeline.put("parentGroupId", "root");
+
+        // Convert processors
+        if (flow.containsKey("processors")) {
+            List<Map<String, Object>> processors = (List<Map<String, Object>>) flow.get("processors");
+            yamlPipeline.put("processors", convertNiFiProcessors(processors));
+        }
+
+        // Convert connections
+        if (flow.containsKey("connections")) {
+            List<Map<String, Object>> connections = (List<Map<String, Object>>) flow.get("connections");
+            yamlPipeline.put("connections", convertNiFiConnections(connections));
+        }
+
+        // Convert funnels
+        if (flow.containsKey("funnels")) {
+            List<Map<String, Object>> funnels = (List<Map<String, Object>>) flow.get("funnels");
+            yamlPipeline.put("funnels", convertNiFiFunnels(funnels));
+        }
+
+        // Convert input ports
+        if (flow.containsKey("inputPorts")) {
+            List<Map<String, Object>> ports = (List<Map<String, Object>>) flow.get("inputPorts");
+            yamlPipeline.put("inputPorts", convertNiFiPorts(ports, "input"));
+        }
+
+        // Convert output ports
+        if (flow.containsKey("outputPorts")) {
+            List<Map<String, Object>> ports = (List<Map<String, Object>>) flow.get("outputPorts");
+            yamlPipeline.put("outputPorts", convertNiFiPorts(ports, "output"));
+        }
+
+        // Convert process groups (nested)
+        if (flow.containsKey("processGroups")) {
+            List<Map<String, Object>> groups = (List<Map<String, Object>>) flow.get("processGroups");
+            yamlPipeline.put("processGroups", convertNiFiProcessGroups(groups));
+        }
+
+        // Convert remote process groups
+        if (flow.containsKey("remoteProcessGroups")) {
+            List<Map<String, Object>> groups = (List<Map<String, Object>>) flow.get("remoteProcessGroups");
+            yamlPipeline.put("remoteProcessGroups", convertNiFiRemoteProcessGroups(groups));
+        }
+
+        return mapper.writeValueAsString(yamlPipeline);
+    }
+
+    /**
+     * Converts NiFi processor entities to YAML format.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> convertNiFiProcessors(List<Map<String, Object>> nifiProcessors) {
+        return nifiProcessors.stream().map(processorEntity -> {
+            Map<String, Object> dto = (Map<String, Object>) processorEntity.get("component");
+            Map<String, Object> yaml = new HashMap<>();
+            yaml.put("name", dto.get("name"));
+            yaml.put("type", dto.get("type"));
+
+            if (dto.containsKey("position")) {
+                Map<String, Object> pos = (Map<String, Object>) dto.get("position");
+                yaml.put("x", pos.get("x"));
+                yaml.put("y", pos.get("y"));
+            }
+
+            if (dto.containsKey("schedulingStrategy")) {
+                yaml.put("schedulingStrategy", dto.get("schedulingStrategy"));
+            }
+            if (dto.containsKey("schedulingPeriod")) {
+                yaml.put("schedulingPeriod", dto.get("schedulingPeriod"));
+            }
+            if (dto.containsKey("concurrentlySchedulableTaskCount")) {
+                yaml.put("concurrentlySchedulableTaskCount", dto.get("concurrentlySchedulableTaskCount"));
+            }
+            if (dto.containsKey("runDurationMillis")) {
+                yaml.put("runDurationMillis", dto.get("runDurationMillis"));
+            }
+            if (dto.containsKey("state")) {
+                yaml.put("state", dto.get("state"));
+            }
+            if (dto.containsKey("autoTerminatedRelationships") && dto.get("autoTerminatedRelationships") instanceof List) {
+                yaml.put("autoTerminatedRelationships", dto.get("autoTerminatedRelationships"));
+            }
+            if (dto.containsKey("properties") && dto.get("properties") instanceof Map) {
+                yaml.put("properties", dto.get("properties"));
+            }
+
+            return yaml;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Converts NiFi connection entities to YAML format.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> convertNiFiConnections(List<Map<String, Object>> nifiConnections) {
+        return nifiConnections.stream().map(connEntity -> {
+            Map<String, Object> dto = (Map<String, Object>) connEntity.get("component");
+            Map<String, Object> yaml = new HashMap<>();
+
+            yaml.put("name", dto.getOrDefault("name", ""));
+            yaml.put("sourceId", "${" + getComponentName(dto, "source") + "}");
+            yaml.put("destinationId", "${" + getComponentName(dto, "destination") + "}");
+
+            if (dto.containsKey("selectedRelationships")) {
+                yaml.put("relationships", dto.get("selectedRelationships"));
+            }
+
+            if (dto.containsKey("flowFileExpiration")) {
+                yaml.put("flowFileExpiration", dto.get("flowFileExpiration"));
+            }
+            if (dto.containsKey("backPressureDataSizeThreshold")) {
+                yaml.put("backPressureDataSizeThreshold", dto.get("backPressureDataSizeThreshold"));
+            }
+            if (dto.containsKey("backPressureObjectThreshold")) {
+                yaml.put("backPressureObjectThreshold", dto.get("backPressureObjectThreshold"));
+            }
+
+            if (dto.containsKey("bends")) {
+                yaml.put("bends", dto.get("bends"));
+            }
+            if (dto.containsKey("labelIndex")) {
+                Map<String, Object> pos = new HashMap<>();
+                pos.put("x", dto.getOrDefault("labelIndex", 0));
+                pos.put("y", 0);
+                yaml.put("position", pos);
+            }
+
+            return yaml;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Gets the name of a component reference (source or destination).
+     */
+    @SuppressWarnings("unchecked")
+    private String getComponentName(Map<String, Object> dto, String key) {
+        if (dto.containsKey(key)) {
+            Map<String, Object> component = (Map<String, Object>) dto.get(key);
+            if (component.containsKey("name")) {
+                return component.get("name").toString();
+            }
+            if (component.containsKey("id")) {
+                return component.get("id").toString();
+            }
+        }
+        return "unknown";
+    }
+
+    /**
+     * Converts NiFi funnel entities to YAML format.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> convertNiFiFunnels(List<Map<String, Object>> nifiFunnels) {
+        return nifiFunnels.stream().map(funnelEntity -> {
+            Map<String, Object> dto = (Map<String, Object>) funnelEntity.get("component");
+            Map<String, Object> yaml = new HashMap<>();
+            yaml.put("name", dto.getOrDefault("name", "Funnel"));
+            if (dto.containsKey("position")) {
+                Map<String, Object> pos = (Map<String, Object>) dto.get("position");
+                yaml.put("x", pos.get("x"));
+                yaml.put("y", pos.get("y"));
+            }
+            return yaml;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Converts NiFi port entities to YAML format.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> convertNiFiPorts(List<Map<String, Object>> nifiPorts, String type) {
+        return nifiPorts.stream().map(portEntity -> {
+            Map<String, Object> dto = (Map<String, Object>) portEntity.get("component");
+            Map<String, Object> yaml = new HashMap<>();
+            yaml.put("name", dto.get("name"));
+            if (dto.containsKey("position")) {
+                Map<String, Object> pos = (Map<String, Object>) dto.get("position");
+                yaml.put("x", pos.get("x"));
+                yaml.put("y", pos.get("y"));
+            }
+            return yaml;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Converts NiFi process group entities to YAML format.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> convertNiFiProcessGroups(List<Map<String, Object>> nifiGroups) {
+        return nifiGroups.stream().map(groupEntity -> {
+            Map<String, Object> dto = (Map<String, Object>) groupEntity.get("component");
+            Map<String, Object> yaml = new HashMap<>();
+            yaml.put("name", dto.get("name"));
+            if (dto.containsKey("position")) {
+                Map<String, Object> pos = (Map<String, Object>) dto.get("position");
+                yaml.put("x", pos.get("x"));
+                yaml.put("y", pos.get("y"));
+            }
+            return yaml;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Converts NiFi remote process group entities to YAML format.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> convertNiFiRemoteProcessGroups(List<Map<String, Object>> nifiGroups) {
+        return nifiGroups.stream().map(groupEntity -> {
+            Map<String, Object> dto = (Map<String, Object>) groupEntity.get("component");
+            Map<String, Object> yaml = new HashMap<>();
+            yaml.put("name", dto.get("name"));
+            yaml.put("targetUris", dto.get("targetUris"));
+            if (dto.containsKey("position")) {
+                Map<String, Object> pos = (Map<String, Object>) dto.get("position");
+                yaml.put("x", pos.get("x"));
+                yaml.put("y", pos.get("y"));
+            }
+            return yaml;
+        }).collect(Collectors.toList());
     }
 
     /**

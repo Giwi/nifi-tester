@@ -57,13 +57,14 @@ import java.util.Map;
  */
 public class PipelineTester implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(PipelineTester.class);
-    
+
     private final ApiClient client;
     private final PipelineConverter converter;
     private String accessToken;
     private int maxRetries = 3;
     private long retryDelayMs = 1000;
     private boolean dryRun = false;
+    private String detectedNiFiVersion = null;
 
     /**
      * Enables or disables dry-run mode.
@@ -185,6 +186,9 @@ public class PipelineTester implements AutoCloseable {
         this.accessToken = token;
         this.client.addDefaultHeader("Authorization", "Bearer " + token);
         log.info("Logged in to NiFi as user: {}", username);
+
+        // Detect NiFi version after successful login
+        detectNiFiVersion();
     }
 
     /**
@@ -577,7 +581,7 @@ public class PipelineTester implements AutoCloseable {
     private BundleDTO getBundleForProcessorType(String type) {
         BundleDTO bundle = new BundleDTO();
         bundle.setGroup("org.apache.nifi");
-        bundle.setVersion("2.0.0-M2");
+        bundle.setVersion(detectedNiFiVersion != null ? detectedNiFiVersion : "2.0.0-M2");
 
         // Determine artifact based on processor type - check specific types first
         if (type != null) {
@@ -599,6 +603,26 @@ public class PipelineTester implements AutoCloseable {
         }
 
         return bundle;
+    }
+
+    /**
+     * Detects the NiFi version from the running instance.
+     * Updates detectedNiFiVersion for use in bundle configuration.
+     */
+    private void detectNiFiVersion() {
+        try {
+            FlowApi flowApi = new FlowApi(client);
+            AboutEntity aboutEntity = flowApi.getAboutInfo();
+            if (aboutEntity != null && aboutEntity.getAbout() != null) {
+                String version = aboutEntity.getAbout().getVersion();
+                if (version != null && !version.isEmpty()) {
+                    detectedNiFiVersion = version;
+                    log.info("Detected NiFi version: {}", detectedNiFiVersion);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to detect NiFi version, using default: {}", e.getMessage());
+        }
     }
 
     private ConnectionEntity createConnectionEntity(Map<String, Object> conn, String parentGroupId, 
@@ -1197,8 +1221,10 @@ public class PipelineTester implements AutoCloseable {
      *   --url <url>       NiFi API URL (default: https://localhost:8443/nifi-api)
      *   --user <username> NiFi username (default: admin)
      *   --pass <password> NiFi password (default: admin)
-     *   --file <path>     Path to YAML pipeline file (required)
+     *   --file <path>     Path to YAML pipeline file (required for deploy)
      *   --parent <id>     Parent process group ID (default: root)
+     *   --convert <path>  Convert NiFi JSON export to YAML (output to stdout or file)
+     *   --output <path>   Output file for --convert (optional, defaults to stdout)
      *
      * @param args Command-line arguments
      */
@@ -1208,6 +1234,8 @@ public class PipelineTester implements AutoCloseable {
         String pass = "admin";
         String file = null;
         String parent = "root";
+        String convertFile = null;
+        String outputFile = null;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -1226,6 +1254,12 @@ public class PipelineTester implements AutoCloseable {
                 case "--parent":
                     if (i + 1 < args.length) parent = args[++i];
                     break;
+                case "--convert":
+                    if (i + 1 < args.length) convertFile = args[++i];
+                    break;
+                case "--output":
+                    if (i + 1 < args.length) outputFile = args[++i];
+                    break;
                 case "--help":
                 case "-h":
                     printUsage();
@@ -1233,8 +1267,28 @@ public class PipelineTester implements AutoCloseable {
             }
         }
 
+        // Handle convert command
+        if (convertFile != null) {
+            try {
+                PipelineConverter converter = new PipelineConverter();
+                String yaml = converter.convertNiFiJsonToYaml(new java.io.File(convertFile));
+
+                if (outputFile != null) {
+                    java.nio.file.Files.writeString(java.nio.file.Paths.get(outputFile), yaml);
+                    System.out.println("Converted successfully: " + convertFile + " -> " + outputFile);
+                } else {
+                    System.out.println(yaml);
+                }
+            } catch (Exception e) {
+                System.err.println("Conversion failed: " + e.getMessage());
+                e.printStackTrace();
+                System.exit(1);
+            }
+            return;
+        }
+
         if (file == null) {
-            System.err.println("Error: --file argument is required");
+            System.err.println("Error: --file argument is required for deployment");
             printUsage();
             System.exit(1);
         }
@@ -1272,8 +1326,10 @@ public class PipelineTester implements AutoCloseable {
         System.out.println("  --url <url>       NiFi API URL (default: https://localhost:8443/nifi-api)");
         System.out.println("  --user <username> NiFi username (default: admin)");
         System.out.println("  --pass <password> NiFi password (default: admin)");
-        System.out.println("  --file <path>     Path to YAML pipeline file (required)");
+        System.out.println("  --file <path>     Path to YAML pipeline file (for deployment)");
         System.out.println("  --parent <id>     Parent process group ID (default: root)");
+        System.out.println("  --convert <path>  Convert NiFi JSON export to YAML format");
+        System.out.println("  --output <path>   Output file for --convert (default: stdout)");
         System.out.println("  --help, -h         Show this help message");
     }
 }
