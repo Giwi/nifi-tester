@@ -550,9 +550,14 @@ public class PipelineTester implements AutoCloseable {
         PortEntity entity = new PortEntity();
         org.giwi.nifi.client.model.PortDTO dto = new org.giwi.nifi.client.model.PortDTO();
         dto.setParentGroupId(parentGroupId);
-        dto.setName((String) portMap.getOrDefault("name", portType == org.giwi.nifi.client.model.PortDTO.TypeEnum.INPUT_PORT ? "Input Port" : "Output Port"));
+
+        // Generate unique port name by appending parent group ID suffix
+        String baseName = (String) portMap.getOrDefault("name", portType == org.giwi.nifi.client.model.PortDTO.TypeEnum.INPUT_PORT ? "Input" : "Output");
+        String uniqueName = baseName + "-" + parentGroupId.substring(Math.max(0, parentGroupId.length() - 8));
+        dto.setName(uniqueName);
+
         dto.setType(portType);
-        
+
         if (portType == org.giwi.nifi.client.model.PortDTO.TypeEnum.INPUT_PORT) {
             dto.setAllowRemoteAccess(true);
         }
