@@ -1,0 +1,35 @@
+name: Standard Test Pipeline
+description: A pipeline using only standard NiFi processors
+parentGroupId: root
+
+processors:
+  - name: GenerateData
+    type: org.apache.nifi.processors.standard.GenerateFlowFile
+    x: 100
+    y: 100
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 sec"
+    properties:
+      File Size: 1KB
+      Text: Hello World from NiFi Tester
+
+  - name: LogOutput
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 400
+    y: 100
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 sec"
+    properties:
+      Log Level: info
+      Log Prefix: "Test: "
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  - name: Generate to Log
+    sourceId: ${GenerateData}
+    destinationId: ${LogOutput}
+    relationships:
+      - success
+    x: 250
+    y: 100
