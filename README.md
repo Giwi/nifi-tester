@@ -24,6 +24,28 @@ Java client library for Apache NiFi REST API with YAML pipeline support.
 
 ## Quick Start
 
+### Command-Line Deployment
+
+```bash
+# Build the project
+./gradlew build
+
+# Deploy a pipeline to a running NiFi instance
+./gradlew run --args='--url https://localhost:8443/nifi-api --user admin --pass admin1234567 --file pipeline.yaml'
+
+# Or use the generated scripts directly
+./build/install/nifi-tester/bin/nifi-tester --url https://localhost:8443/nifi-api --file pipeline.yaml
+
+# Options
+#   --url <url>       NiFi API URL (default: https://localhost:8443/nifi-api)
+#   --user <username> NiFi username (default: admin)
+#   --pass <password> NiFi password (default: admin)
+#   --file <path>     Path to YAML pipeline file (required)
+#   --parent <id>     Parent process group ID (default: root)
+```
+
+### Java API
+
 ```java
 // Connect to NiFi
 PipelineTester tester = new PipelineTester(

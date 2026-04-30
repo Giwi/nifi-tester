@@ -25,6 +25,7 @@ This project provides a Java client library for deploying Apache NiFi pipelines 
 - Login and token management with Bearer authentication
 - Process group creation and management
 - Pipeline deployment from YAML files
+- **CLI support**: Deploy pipelines from command line with `./gradlew run --args='...'`
 
 ### 4. **Processor Creation**
 - Automatic bundle detection based on processor type

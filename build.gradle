@@ -1,6 +1,11 @@
 plugins {
     id 'java'
+    id 'application'
     id 'org.openapi.generator' version '7.14.0'
+}
+
+application {
+    mainClass = 'org.giwi.nifi.client.PipelineTester'
 }
 
 group = 'org.giwi'

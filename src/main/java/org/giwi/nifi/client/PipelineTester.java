@@ -1020,4 +1020,91 @@ public class PipelineTester {
             this.details = details;
         }
     }
+
+    /**
+     * Command-line interface to deploy a pipeline to a running NiFi instance.
+     *
+     * Usage: java -jar nifi-tester.jar [options]
+     *   or: ./gradlew run --args='--url https://localhost:8443/nifi-api --user admin --pass admin1234567 --file pipeline.yaml'
+     *
+     * Options:
+     *   --url <url>       NiFi API URL (default: https://localhost:8443/nifi-api)
+     *   --user <username> NiFi username (default: admin)
+     *   --pass <password> NiFi password (default: admin)
+     *   --file <path>     Path to YAML pipeline file (required)
+     *   --parent <id>     Parent process group ID (default: root)
+     *
+     * @param args Command-line arguments
+     */
+    public static void main(String[] args) {
+        String url = "https://localhost:8443/nifi-api";
+        String user = "admin";
+        String pass = "admin";
+        String file = null;
+        String parent = "root";
+
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "--url":
+                    if (i + 1 < args.length) url = args[++i];
+                    break;
+                case "--user":
+                    if (i + 1 < args.length) user = args[++i];
+                    break;
+                case "--pass":
+                    if (i + 1 < args.length) pass = args[++i];
+                    break;
+                case "--file":
+                    if (i + 1 < args.length) file = args[++i];
+                    break;
+                case "--parent":
+                    if (i + 1 < args.length) parent = args[++i];
+                    break;
+                case "--help":
+                case "-h":
+                    printUsage();
+                    return;
+            }
+        }
+
+        if (file == null) {
+            System.err.println("Error: --file argument is required");
+            printUsage();
+            System.exit(1);
+        }
+
+        try {
+            System.out.println("Deploying pipeline to NiFi...");
+            System.out.println("  URL: " + url);
+            System.out.println("  File: " + file);
+            System.out.println("  Parent Group: " + parent);
+
+            PipelineTester tester = new PipelineTester(url, user, pass);
+            PipelineTesterResult result = tester.deployPipeline(new java.io.File(file), parent);
+
+            if (result.isSuccess()) {
+                System.out.println("Pipeline deployed successfully!");
+                System.out.println("Process Group ID: " + result.getProcessGroupId());
+            } else {
+                System.err.println("Deployment failed: " + result.getMessage());
+                System.exit(1);
+            }
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    private static void printUsage() {
+        System.out.println("Usage: java -jar nifi-tester.jar [options]");
+        System.out.println("");
+        System.out.println("Options:");
+        System.out.println("  --url <url>       NiFi API URL (default: https://localhost:8443/nifi-api)");
+        System.out.println("  --user <username> NiFi username (default: admin)");
+        System.out.println("  --pass <password> NiFi password (default: admin)");
+        System.out.println("  --file <path>     Path to YAML pipeline file (required)");
+        System.out.println("  --parent <id>     Parent process group ID (default: root)");
+        System.out.println("  --help, -h         Show this help message");
+    }
 }
