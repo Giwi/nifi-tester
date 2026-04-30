@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Input validation for `login()`, `deployPipeline()` methods
 - GitHub workflow directory structure (workflows not workflow/s)
 - Hardcoded NiFi version in bundle configuration (now auto-detected from running instance)
+- Bundle detection for groovyx processors (use nifi-groovyx-nar instead of nifi-groovy-nar)
 
 ### Changed
 - Updated GitHub Actions to v5 for Node.js 24 compatibility
