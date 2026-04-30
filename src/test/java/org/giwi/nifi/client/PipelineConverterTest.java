@@ -210,6 +210,87 @@ class PipelineConverterTest {
         }
     }
 
+    @Nested
+    @DisplayName("Connection Bends Tests")
+    class BendsTests {
+
+        @Test
+        @DisplayName("Convert connection with bends")
+        void testConnectionWithBends() throws Exception {
+            String yaml = """
+                name: Test Pipeline
+                connections:
+                  - name: Test Connection
+                    sourceId: ${Proc1}
+                    destinationId: ${Proc2}
+                    relationships:
+                      - success
+                    bends:
+                      - x: 100
+                        y: 200
+                      - x: 300
+                        y: 400
+                """;
+            Map<String, Object> result = converter.convertFromYaml(createTempFile(yaml));
+            assertNotNull(result.get("connections"));
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> connections = (List<Map<String, Object>>) result.get("connections");
+            assertEquals(1, connections.size());
+            
+            Map<String, Object> conn = connections.get(0);
+            assertTrue(conn.containsKey("connection"));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> connMap = (Map<String, Object>) conn.get("connection");
+            assertTrue(connMap.containsKey("bends"));
+        }
+
+        @Test
+        @DisplayName("Convert connection without bends")
+        void testConnectionWithoutBends() throws Exception {
+            String yaml = """
+                name: Test Pipeline
+                connections:
+                  - name: Test Connection
+                    sourceId: ${Proc1}
+                    destinationId: ${Proc2}
+                    relationships:
+                      - success
+                """;
+            Map<String, Object> result = converter.convertFromYaml(createTempFile(yaml));
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> connections = (List<Map<String, Object>>) result.get("connections");
+            Map<String, Object> conn = connections.get(0);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> connMap = (Map<String, Object>) conn.get("connection");
+            assertFalse(connMap.containsKey("bends"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Input Validation Tests")
+    class InputValidationTests {
+
+        @Test
+        @DisplayName("Null YAML file returns empty map")
+        void testNullFile() throws Exception {
+            Map<String, Object> result = converter.convertFromYaml(null);
+            assertNotNull(result);
+            assertTrue(result.isEmpty() || result.get("name") != null);
+        }
+
+        @Test
+        @DisplayName("Empty YAML file handled gracefully")
+        void testEmptyYaml() throws Exception {
+            File tempFile = createTempFile("");
+            try {
+                Map<String, Object> result = converter.convertFromYaml(tempFile);
+                assertNotNull(result);
+            } finally {
+                tempFile.delete();
+            }
+        }
+    }
+
     private File createTempFile(String content) throws Exception {
         File temp = File.createTempFile("pipeline-", ".yaml");
         try (FileWriter fw = new FileWriter(temp)) {

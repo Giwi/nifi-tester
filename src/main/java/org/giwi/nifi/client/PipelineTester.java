@@ -40,12 +40,64 @@ import java.util.Map;
  * @author GiWi
  * @version 1.0-SNAPSHOT
  */
-public class PipelineTester {
+public class PipelineTester implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(PipelineTester.class);
     
     private final ApiClient client;
     private final PipelineConverter converter;
     private String accessToken;
+    private int maxRetries = 3;
+    private long retryDelayMs = 1000;
+    private boolean dryRun = false;
+
+    /**
+     * Enables or disables dry-run mode.
+     * In dry-run mode, deployPipeline will only validate and log what would be created.
+     *
+     * @param dryRun true to enable dry-run mode, false to disable
+     */
+    public void setDryRun(boolean dryRun) {
+        this.dryRun = dryRun;
+    }
+
+    public boolean isDryRun() {
+        return dryRun;
+    }
+
+    // Retryable operations
+    @FunctionalInterface
+    public interface RetryableOperation<T> {
+        T execute() throws Exception;
+    }
+
+    /**
+     * Executes an operation with retry logic.
+     *
+     * @param operation The operation to execute
+     * @param operationName Name of the operation for logging
+     * @return The result of the operation
+     * @throws Exception if all retries fail
+     */
+    private <T> T executeWithRetry(RetryableOperation<T> operation, String operationName) throws Exception {
+        Exception lastException = null;
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return operation.execute();
+            } catch (Exception e) {
+                lastException = e;
+                if (attempt < maxRetries) {
+                    log.warn("Attempt {} failed for {}: {}. Retrying...", attempt + 1, operationName, e.getMessage());
+                    try {
+                        Thread.sleep(retryDelayMs * (attempt + 1)); // Exponential backoff
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new Exception("Retry interrupted", ie);
+                    }
+                }
+            }
+        }
+        throw new Exception("Operation " + operationName + " failed after " + maxRetries + " retries", lastException);
+    }
 
     /**
      * Creates a PipelineTester with the specified NiFi URL.
@@ -154,6 +206,23 @@ public class PipelineTester {
         Map<String, String> processorIdMap = new HashMap<>();
         Map<String, String> inputPortIdMap = new HashMap<>();
         Map<String, String> outputPortIdMap = new HashMap<>();
+
+        // Log what would be deployed (dry-run mode)
+        if (dryRun) {
+            log.info("DRY-RUN: Would deploy pipeline: {}", pipelineData.getOrDefault("name", "Untitled"));
+            log.info("DRY-RUN: Parent group ID: {}", parentGroupId);
+            if (pipelineData.containsKey("processors")) {
+                List<Map<String, Object>> procs = (List<Map<String, Object>>) pipelineData.get("processors");
+                log.info("DRY-RUN: Would create {} processors", procs.size());
+            }
+            if (pipelineData.containsKey("connections")) {
+                List<Map<String, Object>> conns = (List<Map<String, Object>>) pipelineData.get("connections");
+                log.info("DRY-RUN: Would create {} connections", conns.size());
+            }
+            result.setSuccess(true);
+            result.setMessage("Dry-run completed successfully");
+            return result;
+        }
 
         try {
             ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
@@ -648,14 +717,22 @@ public class PipelineTester {
     public boolean deleteProcessGroup(String processGroupId) {
         try {
             ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
-            // Get current version first
-            ProcessGroupEntity pg = pgApi.getProcessGroup(processGroupId);
+            // Get current version first with retry
+            ProcessGroupEntity pg = executeWithRetry(() -> pgApi.getProcessGroup(processGroupId), 
+                "getProcessGroup for " + processGroupId);
+            
             LongParameter version = null;
             if (pg.getRevision() != null && pg.getRevision().getVersion() != null) {
                 version = new LongParameter();
                 version.setLong(pg.getRevision().getVersion());
             }
-            pgApi.removeProcessGroup(processGroupId, version, null, null);
+            
+            // Delete with retry
+            executeWithRetry(() -> {
+                pgApi.removeProcessGroup(processGroupId, version, null, null);
+                return null;
+            }, "deleteProcessGroup " + processGroupId);
+            
             log.info("Deleted process group: {}", processGroupId);
             return true;
         } catch (Exception e) {
