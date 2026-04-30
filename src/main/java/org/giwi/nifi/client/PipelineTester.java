@@ -16,6 +16,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Main entry point for deploying NiFi pipelines from YAML definitions.
+ *
+ * <p>This class provides:
+ * <ul>
+ *   <li>Connection to NiFi REST API with authentication</li>
+ *   <li>Pipeline deployment from YAML files</li>
+ *   <li>Processor and process group management (start/stop, query status)</li>
+ *   <li>Flow file inspection and content retrieval</li>
+ *   <li>Command-line interface for pipeline deployment</li>
+ * </ul>
+ *
+ * <p>Usage examples:
+ * <pre>{@code
+ * // Connect to NiFi
+ * PipelineTester tester = new PipelineTester(url, username, password);
+ *
+ * // Deploy pipeline
+ * PipelineTesterResult result = tester.deployPipeline(yamlFile, "root");
+ * }</pre>
+ *
+ * @author GiWi
+ * @version 1.0-SNAPSHOT
+ */
 public class PipelineTester {
     private static final Logger log = LoggerFactory.getLogger(PipelineTester.class);
     
@@ -974,14 +998,9 @@ public class PipelineTester {
     }
 
     /**
-     * Find an input port by name in a process group
+     * Results from a pipeline deployment operation.
+     * Contains success status, message, and created process group ID.
      */
-    public String findInputPortId(String processGroupId, String portName) {
-        return findPortIdByName(processGroupId, portName, true);
-    }
-
-    // ==================== END TESTING UTILITIES ====================
-
     public static class PipelineTesterResult {
         private boolean success;
         private String message;
@@ -1096,6 +1115,9 @@ public class PipelineTester {
         }
     }
 
+    /**
+     * Prints the command-line usage help message.
+     */
     private static void printUsage() {
         System.out.println("Usage: java -jar nifi-tester.jar [options]");
         System.out.println("");

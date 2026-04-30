@@ -20,6 +20,12 @@ import java.util.*;
  * <p>Each component is assigned a generated UUID and default values are applied
  * where not specified in the YAML definition.</p>
  *
+ * <p>Usage example:
+ * <pre>{@code
+ * PipelineConverter converter = new PipelineConverter();
+ * Map<String, Object> result = converter.convertFromYaml(new File("pipeline.yaml"));
+ * }</pre>
+ *
  * @author GiWi
  * @version 1.0-SNAPSHOT
  */

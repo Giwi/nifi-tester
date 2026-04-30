@@ -92,7 +92,7 @@ class NiFiIntegrationTest {
             }
 
             // Find the input port
-            String inputPortId = tester.findInputPortId(pgId, "Input");
+            String inputPortId = tester.findInputPortIdByName(pgId, "Input");
             assertNotNull(inputPortId, "Input port not found");
 
             // Wait for port to start up before pushing data via Site-to-Site
