@@ -595,6 +595,9 @@ public class PipelineTester implements AutoCloseable {
                 bundle.setArtifact("nifi-jolt-nar");
             } else if (typeLower.contains("json")) {
                 bundle.setArtifact("nifi-json-nar");
+            } else if (typeLower.contains("groovyx")) {
+                // groovyx processors use nifi-groovyx-nar (not nifi-groovy-nar)
+                bundle.setArtifact("nifi-groovyx-nar");
             } else if (typeLower.contains("groovy")) {
                 bundle.setArtifact("nifi-groovy-nar");
             } else if (type.contains(".standard.")) {
