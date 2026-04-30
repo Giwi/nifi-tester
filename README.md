@@ -11,7 +11,11 @@ Java client library for Apache NiFi REST API with YAML pipeline support.
 - **CLI Support**: Deploy pipelines from command line
 - **Dry-Run Mode**: Validate pipelines without deploying
 - **Retry Logic**: Automatic retry for transient API failures
-- **Controller Services**: Support for JDBC, MongoDB, etc.
+- **Pipeline Validation**: Validate YAML syntax and references before deployment
+- **Export Pipeline**: Export deployed process groups back to YAML (`--export`)
+- **Config File**: Auto-load credentials from `~/.nifi-tester.yml`
+- **Interactive Mode**: Explore NiFi instance (`--list-groups`, `--show-group`)
+- **YAML Templates**: Save/load reusable pipeline snippets
 - **AutoCloseable**: Use with try-with-resources for auto-cleanup
 
 ## Installation
@@ -44,8 +48,23 @@ Java client library for Apache NiFi REST API with YAML pipeline support.
 # Convert a NiFi JSON export to YAML format
 ./gradlew run --args='--convert nifi-export.json'
 ./gradlew run --args='--convert nifi-export.json --output pipeline.yaml'
-# Dry-run mode (validate without converting)
-./gradlew run --args='--convert nifi-export.json --dry-run'
+
+# Export a deployed process group to YAML
+./gradlew run --args='--export <process-group-id>'
+./gradlew run --args='--export <id> --output pipeline.yaml'
+
+# List process groups (interactive mode)
+./gradlew run --args='--list-groups'
+./gradlew run --args='--list-groups <parent-group-id>'
+./gradlew run --args='--show-group <process-group-id>'
+
+# Save/load YAML templates
+./gradlew run --args='--save-template my-template pipeline.yaml'
+./gradlew run --args='--load-template my-template'
+./gradlew run --args='--list-templates'
+
+# Save config to ~/.nifi-tester.yml
+./gradlew run --args='--config https://localhost:8443/nifi-api,admin,admin123'
 
 # Options
 #   --url <url>       NiFi API URL (default: https://localhost:8443/nifi-api)
@@ -54,8 +73,20 @@ Java client library for Apache NiFi REST API with YAML pipeline support.
 #   --file <path>     Path to YAML pipeline file (for deployment)
 #   --parent <id>     Parent process group ID (default: root)
 #   --convert <path>  Convert NiFi JSON export to YAML format
-#   --output <path>   Output file for --convert (default: stdout)
-#   --dry-run         Validate without deploying or converting (optional)
+#   --export <id>     Export process group to YAML
+#   --status <id>     Show process group status
+#   --save-template <name> <file>  Save YAML as reusable template
+#   --load-template <name>       Load a saved template
+#   --list-templates            List available templates
+#   --list-groups [id]        List process groups (default: root)
+#   --show-group <id>         Show process group details
+#   --output <path>   Output file for --convert/--export (default: stdout)
+#   --config <url,user,pass> Save config to ~/.nifi-tester.yml
+#   --dry-run         Validate without deploying or converting
+#   --help, -h         Show this help message
+#
+# Config file: ~/.nifi-tester.yml (auto-loaded if exists)
+# Templates dir: ~/.nifi-tester-templates/
 ```
 
 ### NiFi JSON Export Format
@@ -266,6 +297,11 @@ class MyIntegrationTest {
 src/main/java/org/giwi/nifi/client/
 ├── PipelineConverter.java      # YAML to NiFi API converter
 ├── PipelineTester.java         # NiFi deployment client
+├── PipelineValidator.java      # YAML validation before deployment
+├── PipelineExporter.java      # Export process groups to YAML
+├── PipelineTemplates.java      # Save/load reusable templates
+├── InteractiveMode.java       # Explore NiFi instance
+├── ConfigFile.java            # Read ~/.nifi-tester.yml
 ├── NiFiConnection.java         # @NiFiConnection annotation
 ├── api/                       # Auto-generated API clients
 ├── model/                     # Generated API models
@@ -281,6 +317,8 @@ src/test/java/org/giwi/nifi/client/
 src/test/resources/pipelines/
 ├── sample-generate-pipeline.yaml      # Single processor test
 ├── sample-deployment-pipeline.yaml   # Complex pipeline with 6 processors
+├── groovy-script-pipeline.yaml       # Pipeline with Groovy script
+├── standard-pipeline.yaml            # Pipeline with standard processors
 └── test-pipeline-with-ports.yaml      # Pipeline with input/output ports
 ```
 
