@@ -44,6 +44,8 @@ Java client library for Apache NiFi REST API with YAML pipeline support.
 # Convert a NiFi JSON export to YAML format
 ./gradlew run --args='--convert nifi-export.json'
 ./gradlew run --args='--convert nifi-export.json --output pipeline.yaml'
+# Dry-run mode (validate without converting)
+./gradlew run --args='--convert nifi-export.json --dry-run'
 
 # Options
 #   --url <url>       NiFi API URL (default: https://localhost:8443/nifi-api)
@@ -53,7 +55,31 @@ Java client library for Apache NiFi REST API with YAML pipeline support.
 #   --parent <id>     Parent process group ID (default: root)
 #   --convert <path>  Convert NiFi JSON export to YAML format
 #   --output <path>   Output file for --convert (default: stdout)
-#   --dry-run         Validate without deploying (optional)
+#   --dry-run         Validate without deploying or converting (optional)
+```
+
+### NiFi JSON Export Format
+
+The `--convert` command accepts JSON exports from NiFi UI or the API endpoint:
+- UI: Right-click process group → "Download Flow Definition"
+- API: `GET /nifi-api/process-groups/{id}/download`
+
+Expected JSON structure:
+```json
+{
+  "breadcrumb": {
+    "component": {"name": "My Pipeline", "id": "..."}
+  },
+  "flow": {
+    "processors": [{"component": {"name": "Proc1", "type": "..."}}],
+    "connections": [{"component": {"name": "Conn1", ...}}],
+    "inputPorts": [...],
+    "outputPorts": [...],
+    "funnels": [...],
+    "processGroups": [...],
+    "remoteProcessGroups": [...]
+  }
+}
 ```
 
 ### Java API

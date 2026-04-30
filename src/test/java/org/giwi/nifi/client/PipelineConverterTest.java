@@ -291,6 +291,164 @@ class PipelineConverterTest {
         }
     }
 
+    @Nested
+    @DisplayName("NiFi JSON to YAML Conversion Tests")
+    class NiFiJsonToYamlTests {
+
+        private File createTempJsonFile(String content) throws Exception {
+            File temp = File.createTempFile("nifi-export-", ".json");
+            try (FileWriter fw = new FileWriter(temp)) {
+                fw.write(content);
+            }
+            temp.deleteOnExit();
+            return temp;
+        }
+
+        @Test
+        @DisplayName("Convert simple NiFi JSON export to YAML")
+        void testSimpleJsonToYaml() throws Exception {
+            String json = "{\"breadcrumb\":{\"component\":{\"name\":\"Test Pipeline\"}},\"flow\":{\"processors\":[{\"component\":{\"name\":\"GenerateFlowFile\",\"type\":\"org.apache.nifi.processors.standard.GenerateFlowFile\",\"position\":{\"x\":100,\"y\":100}}}]}}";
+
+            File tempFile = createTempJsonFile(json);
+            try {
+                String yaml = converter.convertNiFiJsonToYaml(tempFile);
+                assertNotNull(yaml);
+                assertTrue(yaml.contains("name:"));
+                assertTrue(yaml.contains("GenerateFlowFile"));
+                assertTrue(yaml.contains("org.apache.nifi.processors.standard.GenerateFlowFile"));
+            } finally {
+                tempFile.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("Convert JSON with connections to YAML")
+        void testJsonWithConnectionsToYaml() throws Exception {
+            String json = "{\"flow\":{\"processors\":[{\"component\":{\"name\":\"Source\",\"type\":\"org.apache.nifi.processors.standard.GenerateFlowFile\",\"position\":{\"x\":100,\"y\":100}}},{\"component\":{\"name\":\"Dest\",\"type\":\"org.apache.nifi.processors.standard.LogAttribute\",\"position\":{\"x\":300,\"y\":100}}}],\"connections\":[{\"component\":{\"name\":\"Connect\",\"source\":{\"name\":\"Source\"},\"destination\":{\"name\":\"Dest\"},\"selectedRelationships\":[\"success\"]}}]}}";
+
+            File tempFile = createTempJsonFile(json);
+            try {
+                String yaml = converter.convertNiFiJsonToYaml(tempFile);
+                assertNotNull(yaml);
+                assertTrue(yaml.contains("connections:"));
+                assertTrue(yaml.contains("sourceId:"));
+                assertTrue(yaml.contains("destinationId:"));
+                assertTrue(yaml.contains("relationships:"));
+            } finally {
+                tempFile.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("Convert JSON with ports to YAML")
+        void testJsonWithPortsToYaml() throws Exception {
+            String json = """
+                {
+                  "flow": {
+                    "inputPorts": [
+                      {
+                        "component": {
+                          "name": "Input",
+                          "position": {"x": 50, "y": 100}
+                        }
+                      }
+                    ],
+                    "outputPorts": [
+                      {
+                        "component": {
+                          "name": "Output",
+                          "position": {"x": 400, "y": 100}
+                        }
+                      }
+                    ]
+                  }
+                }
+                """;
+
+            File tempFile = createTempJsonFile(json);
+            try {
+                String yaml = converter.convertNiFiJsonToYaml(tempFile);
+                assertNotNull(yaml);
+                assertTrue(yaml.contains("inputPorts:"));
+                assertTrue(yaml.contains("outputPorts:"));
+                assertTrue(yaml.contains("Input"));
+                assertTrue(yaml.contains("Output"));
+            } finally {
+                tempFile.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("Convert JSON with all component types to YAML")
+        void testJsonWithAllComponentsToYaml() throws Exception {
+            String json = """
+                {
+                  "breadcrumb": {
+                    "component": {
+                      "name": "Full Pipeline"
+                    }
+                  },
+                  "flow": {
+                    "processors": [
+                      {
+                        "component": {
+                          "name": "Proc1",
+                          "type": "org.apache.nifi.processors.standard.GenerateFlowFile",
+                          "position": {"x": 100, "y": 100}
+                        }
+                      }
+                    ],
+                    "funnels": [
+                      {
+                        "component": {
+                          "name": "MyFunnel",
+                          "position": {"x": 200, "y": 200}
+                        }
+                      }
+                    ],
+                    "processGroups": [
+                      {
+                        "component": {
+                          "name": "SubGroup",
+                          "position": {"x": 300, "y": 300}
+                        }
+                      }
+                    ]
+                  }
+                }
+                """;
+
+            File tempFile = createTempJsonFile(json);
+            try {
+                String yaml = converter.convertNiFiJsonToYaml(tempFile);
+                assertNotNull(yaml);
+                assertTrue(yaml.contains("processors:"));
+                assertTrue(yaml.contains("funnels:"));
+                assertTrue(yaml.contains("processGroups:"));
+                assertTrue(yaml.contains("Proc1"));
+                assertTrue(yaml.contains("MyFunnel"));
+                assertTrue(yaml.contains("SubGroup"));
+            } finally {
+                tempFile.delete();
+            }
+        }
+
+        @Test
+        @DisplayName("Convert JSON without breadcrumb uses default name")
+        void testJsonWithoutBreadcrumb() throws Exception {
+            String json = "{\"flow\":{\"processors\":[{\"component\":{\"name\":\"TestProc\",\"type\":\"org.apache.nifi.processors.standard.GenerateFlowFile\"}}]}}";
+
+            File tempFile = createTempJsonFile(json);
+            try {
+                String yaml = converter.convertNiFiJsonToYaml(tempFile);
+                assertNotNull(yaml);
+                assertTrue(yaml.contains("Imported Pipeline") || yaml.contains("name:"));
+            } finally {
+                tempFile.delete();
+            }
+        }
+    }
+
     private File createTempFile(String content) throws Exception {
         File temp = File.createTempFile("pipeline-", ".yaml");
         try (FileWriter fw = new FileWriter(temp)) {

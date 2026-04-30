@@ -1244,6 +1244,7 @@ public class PipelineTester implements AutoCloseable {
         String parent = "root";
         String convertFile = null;
         String outputFile = null;
+        boolean dryRunCli = false;
 
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
@@ -1268,6 +1269,9 @@ public class PipelineTester implements AutoCloseable {
                 case "--output":
                     if (i + 1 < args.length) outputFile = args[++i];
                     break;
+                case "--dry-run":
+                    dryRunCli = true;
+                    break;
                 case "--help":
                 case "-h":
                     printUsage();
@@ -1279,13 +1283,20 @@ public class PipelineTester implements AutoCloseable {
         if (convertFile != null) {
             try {
                 PipelineConverter converter = new PipelineConverter();
-                String yaml = converter.convertNiFiJsonToYaml(new java.io.File(convertFile));
 
-                if (outputFile != null) {
-                    java.nio.file.Files.writeString(java.nio.file.Paths.get(outputFile), yaml);
-                    System.out.println("Converted successfully: " + convertFile + " -> " + outputFile);
+                // Check for dry-run mode
+                if (dryRunCli) {
+                    System.out.println("Dry-run: Would convert " + convertFile + " to YAML format");
+                    System.out.println("Use without --dry-run to perform actual conversion");
                 } else {
-                    System.out.println(yaml);
+                    String yaml = converter.convertNiFiJsonToYaml(new java.io.File(convertFile));
+
+                    if (outputFile != null) {
+                        java.nio.file.Files.writeString(java.nio.file.Paths.get(outputFile), yaml);
+                        System.out.println("Converted successfully: " + convertFile + " -> " + outputFile);
+                    } else {
+                        System.out.println(yaml);
+                    }
                 }
             } catch (Exception e) {
                 System.err.println("Conversion failed: " + e.getMessage());

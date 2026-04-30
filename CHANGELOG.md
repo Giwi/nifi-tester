@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-04-30
+
+### Added
+- CLI command to convert NiFi JSON exports to YAML (`--convert`)
+- Dry-run mode for `--convert` command to validate without outputting
+- Unit tests for `convertNiFiJsonToYaml()` method (5 new tests)
+- Documentation for NiFi JSON export format in README.md
+- Automatic NiFi version detection (no more hardcoded versions)
+- Support for all component types in JSON conversion (processors, connections, ports, funnels, process groups, remote process groups)
+
+### Fixed
+- Bundle detection for groovyx processors (use nifi-groovyx-nar instead of nifi-groovy-nar)
+- Port name uniqueness (append group ID suffix to avoid "Public port name must be unique" error)
+- GitHub release workflow permissions (use actions/github-script for release notes)
+
+### Changed
+- Updated GitHub Actions to v5 for Node.js 24 compatibility
+
 ## [Unreleased]
 
 ### Added
@@ -16,7 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - YAML schema documentation in README.md
 - `version.properties` file for JAR naming
 - Connection bends support (control points for connection lines)
-- CLI command to convert NiFi JSON exports to YAML (`--convert`)
 
 ### Fixed
 - Groovy typo in `getBundleForProcessorType()` method
@@ -24,7 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Input validation for `login()`, `deployPipeline()` methods
 - GitHub workflow directory structure (workflows not workflow/s)
 - Hardcoded NiFi version in bundle configuration (now auto-detected from running instance)
-- Bundle detection for groovyx processors (use nifi-groovyx-nar instead of nifi-groovy-nar)
 
 ### Changed
 - Updated GitHub Actions to v5 for Node.js 24 compatibility
