@@ -15,11 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests for bends support and input validation
 - YAML schema documentation in README.md
 - `version.properties` file for JAR naming
+- Connection bends support (control points for connection lines)
 
 ### Fixed
 - Groovy typo in `getBundleForProcessorType()` method
 - `deleteProcessGroup()` now properly uses version parameter
-- Connection bends support (control points for connection lines)
 - Input validation for `login()`, `deployPipeline()` methods
 - GitHub workflow directory structure (workflows not workflow/s)
 

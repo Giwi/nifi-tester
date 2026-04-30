@@ -222,12 +222,10 @@ Recommended improvements:
 
 ## Known Limitations
 
-1. **deleteProcessGroup()** - Currently mocked (returns true without deletion), but `deleteProcessGroupReal()` is available for actual deletion
-2. **Process Group Cleanup** - No automatic cleanup on failure
-3. **Connection Bends** - Not yet supported (uses empty list)
-4. **Load Balancing** - Load balance strategy fields not yet configured
-5. **Prioritizers** - Connection prioritizers not yet implemented
-6. **Versioned Components** - Versioned component IDs not yet handled
+1. **Process Group Cleanup** - No automatic cleanup on failure
+2. **Load Balancing** - Load balance strategy fields not yet configured
+3. **Prioritizers** - Connection prioritizers not yet implemented
+4. **Versioned Components** - Versioned component IDs not yet handled
 
 ## Recently Completed
 
@@ -246,14 +244,14 @@ Recommended improvements:
 2. ✅ Improve connection creation with all fields
 3. ✅ Test with actual NiFi server
 4. ✅ Test connection creation and verify it doesn't return 500 error
-5. Switch deleteProcessGroup() to use real implementation
+5. ✅ Switch deleteProcessGroup() to use real implementation
 
 ### Medium Term
 1. Add support for nested process groups
 2. Add error recovery and rollback logic
 3. Support for input/output ports
 4. Remote process group support
-5. Implement connection bends support
+5. ✅ Implement connection bends support
 
 ### Long Term
 1. Template management

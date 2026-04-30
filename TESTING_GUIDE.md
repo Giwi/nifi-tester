@@ -15,12 +15,12 @@ docker run -d \
   -e NIFI_SECURITY_USER_AUTHORIZER=single-user-authorizer \
   -e SINGLE_USER_CREDENTIALS_USERNAME=admin \
   -e SINGLE_USER_CREDENTIALS_PASSWORD=admin1234567 \
-  apache/nifi:2.0.0-M2
+  apache/nifi:latest
 ```
 
 #### Option B: Local Installation
 
-1. Download NiFi 2.0.0-M2 from https://nifi.apache.org/download.html
+1. Download NiFi from https://nifi.apache.org/download.html
 2. Extract and navigate to nifi directory
 3. Configure `conf/nifi.properties`:
    ```
@@ -150,13 +150,12 @@ curl -k -X POST https://localhost:8443/nifi-api/process-groups/{pgId}/connection
 **Possible Causes**:
 1. Processor IDs are invalid or don't exist
 2. Connection fields are missing or incorrectly formatted
-3. NiFi API expects additional fields (e.g., bends, prioritizers)
-4. Parent group ID is incorrect
+3. Parent group ID is incorrect
 
 **Solution**: Check the following in code order:
 1. Verify processor IDs are correctly resolved in `processorIdMap`
 2. Check ConnectionDTO has source and destination objects with correct ID and type
-3. Bends list is now supported (use YAML `bends:` field)
+3. Bends list is supported (use YAML `bends:` field)
 4. Verify parentGroupId matches the actual process group
 
 ### Issue: Relationships Not Recognized
@@ -177,3 +176,4 @@ curl -k -X POST https://localhost:8443/nifi-api/process-groups/{pgId}/connection
 6. Add support for Controller Services ✅ (Config class ready)
 7. Add dry-run mode ✅ (Implemented)
 8. Add AutoCloseable support ✅ (Implemented)
+9. Add connection bends support ✅ (Implemented)
