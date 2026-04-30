@@ -107,6 +107,12 @@ public class PipelineTester {
      * @param password The password
      */
     public void login(String username, String password) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("Username cannot be null or empty");
+        }
+        if (password == null || password.trim().isEmpty()) {
+            throw new IllegalArgumentException("Password cannot be null or empty");
+        }
         AccessApi accessApi = new AccessApi(client);
         String token = accessApi.createAccessToken(password, username);
         this.accessToken = token;
@@ -122,10 +128,19 @@ public class PipelineTester {
      * @throws IOException if the file cannot be read
      */
     public PipelineTesterResult deployPipeline(File yamlFile) throws IOException {
+        if (yamlFile == null) {
+            throw new IllegalArgumentException("YAML file cannot be null");
+        }
+        if (!yamlFile.exists() || !yamlFile.canRead()) {
+            throw new IOException("YAML file does not exist or cannot be read: " + yamlFile.getPath());
+        }
         return deployPipeline(yamlFile, "root");
     }
 
     public PipelineTesterResult deployPipeline(File yamlFile, String parentGroupId) throws IOException {
+        if (yamlFile == null) {
+            throw new IllegalArgumentException("YAML file cannot be null");
+        }
         Map<String, Object> pipelineData = converter.convertFromYaml(yamlFile);
         if (parentGroupId != null) {
             pipelineData.put("parentGroupId", parentGroupId);
@@ -487,8 +502,6 @@ public class PipelineTester {
                 bundle.setArtifact("nifi-jolt-nar");
             } else if (typeLower.contains("json")) {
                 bundle.setArtifact("nifi-json-nar");
-            } else if (typeLower.contains("groovyx")) {
-                bundle.setArtifact("nifi-groovyx-nar");
             } else if (typeLower.contains("groovy")) {
                 bundle.setArtifact("nifi-groovy-nar");
             } else if (type.contains(".standard.")) {
@@ -599,6 +612,19 @@ public class PipelineTester {
             dto.setPosition(pos);
         }
 
+        // Set bends (control points for connection line)
+        if (connMap.containsKey("bends")) {
+            List<Map<String, Object>> bendList = (List<Map<String, Object>>) connMap.get("bends");
+            List<PositionDTO> bends = new ArrayList<>();
+            for (Map<String, Object> bendMap : bendList) {
+                PositionDTO bend = new PositionDTO();
+                bend.setX(((Number) bendMap.getOrDefault("x", 0)).doubleValue());
+                bend.setY(((Number) bendMap.getOrDefault("y", 0)).doubleValue());
+                bends.add(bend);
+            }
+            dto.setBends(bends);
+        }
+
         RevisionDTO revision = new RevisionDTO();
         revision.setVersion(0L);
         entity.setRevision(revision);
@@ -622,10 +648,18 @@ public class PipelineTester {
     public boolean deleteProcessGroup(String processGroupId) {
         try {
             ProcessGroupsApi pgApi = new ProcessGroupsApi(client);
-            pgApi.removeProcessGroup(processGroupId, null, null, null);
+            // Get current version first
+            ProcessGroupEntity pg = pgApi.getProcessGroup(processGroupId);
+            LongParameter version = null;
+            if (pg.getRevision() != null && pg.getRevision().getVersion() != null) {
+                version = new LongParameter();
+                version.setLong(pg.getRevision().getVersion());
+            }
+            pgApi.removeProcessGroup(processGroupId, version, null, null);
             log.info("Deleted process group: {}", processGroupId);
             return true;
         } catch (Exception e) {
+            log.error("Failed to delete process group: {}", processGroupId, e);
             return false;
         }
     }

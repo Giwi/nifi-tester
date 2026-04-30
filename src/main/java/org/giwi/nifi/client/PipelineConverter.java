@@ -211,6 +211,19 @@ public class PipelineConverter {
             pos.put("y", getDouble(conn, "y", 0.0));
             dto.put("position", pos);
 
+            // Add bends support (control points for connection line)
+            if (conn.containsKey("bends")) {
+                List<Map<String, Object>> bendList = (List<Map<String, Object>>) conn.get("bends");
+                List<Map<String, Object>> bends = new ArrayList<>();
+                for (Map<String, Object> bendMap : bendList) {
+                    Map<String, Object> bend = new HashMap<>();
+                    bend.put("x", getDouble(bendMap, "x", 0.0));
+                    bend.put("y", getDouble(bendMap, "y", 0.0));
+                    bends.add(bend);
+                }
+                dto.put("bends", bends);
+            }
+
             Map<String, Object> revision = new HashMap<>();
             revision.put("version", 0L);
             dto.put("revision", revision);

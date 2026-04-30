@@ -4,12 +4,18 @@ plugins {
     id 'org.openapi.generator' version '7.14.0'
 }
 
+// Read version from properties file
+def versionProperties = new Properties()
+file('version.properties').withInputStream { versionProperties.load(it) }
+def baseVersion = versionProperties.getProperty('version', '1.0.0')
+def isSnapshot = versionProperties.getProperty('snapshot', 'true').toBoolean()
+version = isSnapshot ? "${baseVersion}-SNAPSHOT" : baseVersion
+
 application {
     mainClass = 'org.giwi.nifi.client.PipelineTester'
 }
 
 group = 'org.giwi'
-version = '1.0-SNAPSHOT'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
