@@ -58,10 +58,25 @@ test {
     useJUnitPlatform()
     // Exclude integration tests from standard test run
     exclude '**/*IntegrationTest.class'
+
+    // Show test results in console
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        showExceptions true
+        exceptionFormat "full"
+        showCauses true
+        showStackTraces true
+    }
 }
 
 task integrationTest(type: Test) {
     useJUnitPlatform()
     include '**/*IntegrationTest.class'
     shouldRunAfter test
+
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+        showExceptions true
+        exceptionFormat "full"
+    }
 }
