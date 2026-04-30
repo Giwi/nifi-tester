@@ -212,6 +212,21 @@ public class PipelineTester implements AutoCloseable {
         if (yamlFile == null) {
             throw new IllegalArgumentException("YAML file cannot be null");
         }
+        if (!yamlFile.exists() || !yamlFile.canRead()) {
+            throw new IOException("YAML file does not exist or cannot be read: " + yamlFile.getPath());
+        }
+
+        // Validate pipeline before deployment
+        PipelineValidator validator = new PipelineValidator();
+        List<String> validationErrors = validator.validate(yamlFile);
+        if (!validationErrors.isEmpty()) {
+            PipelineTesterResult result = new PipelineTesterResult();
+            result.setSuccess(false);
+            result.setMessage("Validation failed:\n" + String.join("\n", validationErrors));
+            log.error("Pipeline validation failed: {}", validationErrors);
+            return result;
+        }
+
         Map<String, Object> pipelineData = converter.convertFromYaml(yamlFile);
         if (parentGroupId != null) {
             pipelineData.put("parentGroupId", parentGroupId);
@@ -1246,6 +1261,13 @@ public class PipelineTester implements AutoCloseable {
         String outputFile = null;
         boolean dryRunCli = false;
 
+        // Load config file first
+        ConfigFile configFile = new ConfigFile();
+        Map<String, String> config = configFile.load();
+        url = config.getOrDefault("url", url);
+        user = config.getOrDefault("user", user);
+        pass = config.getOrDefault("pass", pass);
+
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--url":
@@ -1271,6 +1293,21 @@ public class PipelineTester implements AutoCloseable {
                     break;
                 case "--dry-run":
                     dryRunCli = true;
+                    break;
+                case "--config":
+                    if (i + 1 < args.length) {
+                        // Save config
+                        String[] parts = args[++i].split(",");
+                        if (parts.length >= 3) {
+                            try {
+                                configFile.save(parts[0], parts[1], parts[2]);
+                                System.out.println("Config saved to ~/.nifi-tester.yml");
+                            } catch (IOException e) {
+                                System.err.println("Failed to save config: " + e.getMessage());
+                            }
+                            return;
+                        }
+                    }
                     break;
                 case "--help":
                 case "-h":
@@ -1301,6 +1338,62 @@ public class PipelineTester implements AutoCloseable {
             } catch (Exception e) {
                 System.err.println("Conversion failed: " + e.getMessage());
                 e.printStackTrace();
+                System.exit(1);
+            }
+            return;
+        }
+
+        // Handle export command
+        String exportPgId = null;
+        for (int i = 0; i < args.length; i++) {
+            if ("--export".equals(args[i]) && i + 1 < args.length && !args[i + 1].startsWith("--")) {
+                exportPgId = args[++i];
+                break;
+            }
+        }
+        if (exportPgId != null) {
+            try {
+                PipelineExporter exporter = new PipelineExporter(url, user, pass);
+                String yaml = exporter.exportProcessGroup(exportPgId);
+                if (outputFile != null) {
+                    java.nio.file.Files.writeString(java.nio.file.Paths.get(outputFile), yaml);
+                    System.out.println("Exported successfully: " + exportPgId + " -> " + outputFile);
+                } else {
+                    System.out.println(yaml);
+                }
+                exporter.close();
+            } catch (Exception e) {
+                System.err.println("Export failed: " + e.getMessage());
+                e.printStackTrace();
+                System.exit(1);
+            }
+            return;
+        }
+
+        // Handle status command
+        String statusPgId = null;
+        for (int i = 0; i < args.length; i++) {
+            if ("--status".equals(args[i]) && i + 1 < args.length) {
+                statusPgId = args[++i];
+                break;
+            }
+        }
+        if (statusPgId != null) {
+            try {
+                PipelineTester tester = new PipelineTester(url, user, pass);
+                org.giwi.nifi.client.api.ProcessGroupsApi pgApi =
+                    new org.giwi.nifi.client.api.ProcessGroupsApi(tester.getClient());
+                var pgEntity = pgApi.getProcessGroup(statusPgId);
+                if (pgEntity != null && pgEntity.getComponent() != null) {
+                    System.out.println("Process Group: " + pgEntity.getComponent().getName());
+                    System.out.println("ID: " + statusPgId);
+                    System.out.println("Running Count: " + pgEntity.getComponent().getRunningCount());
+                } else {
+                    System.out.println("Process group not found: " + statusPgId);
+                }
+                tester.close();
+            } catch (Exception e) {
+                System.err.println("Status check failed: " + e.getMessage());
                 System.exit(1);
             }
             return;
@@ -1348,7 +1441,13 @@ public class PipelineTester implements AutoCloseable {
         System.out.println("  --file <path>     Path to YAML pipeline file (for deployment)");
         System.out.println("  --parent <id>     Parent process group ID (default: root)");
         System.out.println("  --convert <path>  Convert NiFi JSON export to YAML format");
-        System.out.println("  --output <path>   Output file for --convert (default: stdout)");
+        System.out.println("  --export <id>     Export process group to YAML");
+        System.out.println("  --status <id>     Show process group status");
+        System.out.println("  --output <path>   Output file for --convert/--export (default: stdout)");
+        System.out.println("  --config <url,user,pass> Save config to ~/.nifi-tester.yml");
+        System.out.println("  --dry-run         Validate without deploying or converting");
         System.out.println("  --help, -h         Show this help message");
+        System.out.println("");
+        System.out.println("Config file: ~/.nifi-tester.yml (auto-loaded if exists)");
     }
 }
