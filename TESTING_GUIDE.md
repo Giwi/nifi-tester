@@ -39,41 +39,59 @@ curl -k https://localhost:8443/nifi-api/system-diagnostics
 # Should return JSON with system diagnostics
 ```
 
-## Running Integration Tests
+## Running Tests
 
-### Test 1: Simple Pipeline (1 Processor)
+### Unit Tests (No NiFi Required)
 
 ```bash
+# Run all unit tests
+./gradlew test
+
+# Specific test class
+./gradlew test --tests "org.giwi.nifi.client.PipelineConverterTest"
+```
+
+### Integration Tests (Requires Running NiFi)
+
+```bash
+# Test 1: Simple Pipeline (1 Processor)
 ./gradlew integrationTest --tests "org.giwi.nifi.client.NiFiIntegrationTest"
-```
 
-Expected Result:
-- Process group created
-- Single GenerateFlowFile processor created
-- Process group can be queried and deleted
-
-### Test 2: Comprehensive Pipeline Tests
-
-```bash
+# Test 2: Comprehensive Pipeline Tests
 ./gradlew integrationTest --tests "org.giwi.nifi.client.PipelineIntegrationTest"
-```
 
-Expected Result:
-- Process group created
-- Multiple processors created
-- Connections created successfully
-- Process group can be queried and cleaned up
-
-### Test 3: Pipeline with Ports
-
-```bash
+# Test 3: Pipeline with Ports
 ./gradlew integrationTest --tests "org.giwi.nifi.client.PipelineIntegrationTest.testPipelineWithPorts"
 ```
 
-Expected Result:
-- Process group created with input/output ports
-- Processors connected through ports
-- Proper data flow through the pipeline
+## New Features for Testing
+
+### Dry-Run Mode
+Validate pipelines without deploying:
+```java
+PipelineTester tester = new PipelineTester(url, user, pass);
+tester.setDryRun(true);
+PipelineTesterResult result = tester.deployPipeline(yamlFile, "root");
+// Result shows what would be created without actual deployment
+```
+
+### Retry Logic
+API calls automatically retry on transient failures (configurable):
+```java
+// Default: 3 retries with 1000ms base delay
+// Modify via reflection or future configuration options
+```
+
+### Controller Services
+Support for JDBC, MongoDB, etc. (via `ControllerServiceConfig`):
+```yaml
+controllerServices:
+  - name: MyDatabase
+    type: org.apache.nifi.dbcp.DBCPConnectionPool
+    properties:
+      Database Connection URL: jdbc:mysql://localhost:3306/db
+      Password: password
+```
 
 ## Debugging Connection Errors
 
@@ -138,7 +156,7 @@ curl -k -X POST https://localhost:8443/nifi-api/process-groups/{pgId}/connection
 **Solution**: Check the following in code order:
 1. Verify processor IDs are correctly resolved in `processorIdMap`
 2. Check ConnectionDTO has source and destination objects with correct ID and type
-3. Bends list is set to empty ArrayList in current implementation
+3. Bends list is now supported (use YAML `bends:` field)
 4. Verify parentGroupId matches the actual process group
 
 ### Issue: Relationships Not Recognized
@@ -154,5 +172,8 @@ curl -k -X POST https://localhost:8443/nifi-api/process-groups/{pgId}/connection
 1. If all tests pass, mark the feature as complete
 2. If tests fail, debug using the guide above
 3. Add more complex pipeline scenarios (nested groups, ports, remote groups)
-4. Add error handling and retry logic
-5. Switch deleteProcessGroup() to use real implementation (deleteProcessGroupReal() available)
+4. Add error handling and retry logic ✅ (Implemented)
+5. Switch deleteProcessGroup() to use real implementation ✅ (Fixed)
+6. Add support for Controller Services ✅ (Config class ready)
+7. Add dry-run mode ✅ (Implemented)
+8. Add AutoCloseable support ✅ (Implemented)

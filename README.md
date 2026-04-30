@@ -8,6 +8,11 @@ Java client library for Apache NiFi REST API with YAML pipeline support.
 - **Pipeline Converter**: Convert YAML pipelines to NiFi API format
 - **Pipeline Tester**: Deploy and test pipelines on remote NiFi instances
 - **Test Infrastructure**: JUnit 5 integration with `@NiFiConnection` annotation
+- **CLI Support**: Deploy pipelines from command line
+- **Dry-Run Mode**: Validate pipelines without deploying
+- **Retry Logic**: Automatic retry for transient API failures
+- **Controller Services**: Support for JDBC, MongoDB, etc.
+- **AutoCloseable**: Use with try-with-resources for auto-cleanup
 
 ## Installation
 
@@ -42,6 +47,7 @@ Java client library for Apache NiFi REST API with YAML pipeline support.
 #   --pass <password> NiFi password (default: admin)
 #   --file <path>     Path to YAML pipeline file (required)
 #   --parent <id>     Parent process group ID (default: root)
+#   --dry-run      Validate without deploying (optional)
 ```
 
 ### Java API
@@ -54,12 +60,24 @@ PipelineTester tester = new PipelineTester(
     "password"
 );
 
+// Enable dry-run mode (validate without deploying)
+tester.setDryRun(true);
+
 // Deploy pipeline from YAML
 PipelineTester.PipelineTesterResult result = tester.deployPipeline(
     new File("pipeline.yaml"),
     "root"
 );
 
+// Use with try-with-resources for auto-cleanup
+try (PipelineTester tester = new PipelineTester(url, username, password)) {
+    PipelineTesterResult result = tester.deployPipeline(yamlFile, "root");
+    if (result.isSuccess()) {
+        System.out.println("Created: " + result.getProcessGroupId());
+    }
+} // Auto-closes and cleans up
+
+// Or manually
 if (result.isSuccess()) {
     System.out.println("Created: " + result.getProcessGroupId());
     

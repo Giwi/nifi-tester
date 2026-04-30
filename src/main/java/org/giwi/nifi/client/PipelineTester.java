@@ -736,15 +736,18 @@ public class PipelineTester implements AutoCloseable {
             ProcessGroupEntity pg = executeWithRetry(() -> pgApi.getProcessGroup(processGroupId), 
                 "getProcessGroup for " + processGroupId);
             
-            LongParameter version = null;
+            final LongParameter version;
             if (pg.getRevision() != null && pg.getRevision().getVersion() != null) {
                 version = new LongParameter();
                 version.setLong(pg.getRevision().getVersion());
+            } else {
+                version = null;
             }
             
             // Delete with retry
+            final String pgId = processGroupId;
             executeWithRetry(() -> {
-                pgApi.removeProcessGroup(processGroupId, version, null, null);
+                pgApi.removeProcessGroup(pgId, version, null, null);
                 return null;
             }, "deleteProcessGroup " + processGroupId);
             
@@ -1163,6 +1166,24 @@ public class PipelineTester implements AutoCloseable {
 
         public void setDetails(Map<String, Object> details) {
             this.details = details;
+        }
+    }
+
+    /**
+     * Closes the PipelineTester and cleans up resources.
+     * Logs out from NiFi if an access token exists.
+     */
+    @Override
+    public void close() {
+        if (accessToken != null) {
+            try {
+                AccessApi accessApi = new AccessApi(client);
+                accessApi.logOut();
+                log.info("Logged out from NiFi");
+            } catch (Exception e) {
+                log.warn("Failed to logout from NiFi: {}", e.getMessage());
+            }
+            accessToken = null;
         }
     }
 
