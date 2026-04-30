@@ -393,6 +393,15 @@ public class PipelineTester implements AutoCloseable {
         return client;
     }
 
+    /**
+     * Gets the detected NiFi version (if available).
+     *
+     * @return The detected NiFi version, or null if not yet detected
+     */
+    public String getDetectedNiFiVersion() {
+        return detectedNiFiVersion;
+    }
+
     @SuppressWarnings("unchecked")
     private void autoTerminateUnconnectedRelationships(ProcessGroupsApi pgApi, String pgId, Map<String, String> processorIdMap, Map<String, Object> pipelineData) {
         try {
