@@ -286,15 +286,15 @@ class MyIntegrationTest {
 ./gradlew integrationTest -Dnifi.url=https://localhost:8443/nifi-api -Dnifi.user=admin -Dnifi.pass=admin1234567
 
 # Specific test class
-./gradlew test --tests "org.giwi.nifi.client.PipelineConverterTest"
-./gradlew integrationTest --tests "org.giwi.nifi.client.NiFiIntegrationTest"
-./gradlew integrationTest --tests "org.giwi.nifi.client.PipelineIntegrationTest"
+./gradlew test --tests "org.giwi.nifi.tester.PipelineConverterTest"
+./gradlew integrationTest --tests "org.giwi.nifi.tester.NiFiIntegrationTest"
+./gradlew integrationTest --tests "org.giwi.nifi.tester.PipelineIntegrationTest"
 ```
 
 ## Project Structure
 
 ```
-src/main/java/org/giwi/nifi/client/
+src/main/java/org/giwi/nifi/tester/
 ├── PipelineConverter.java      # YAML to NiFi API converter
 ├── PipelineTester.java         # NiFi deployment client
 ├── PipelineValidator.java      # YAML validation before deployment
@@ -307,7 +307,7 @@ src/main/java/org/giwi/nifi/client/
 ├── model/                     # Generated API models
 └── invoker/                  # API client infrastructure
 
-src/test/java/org/giwi/nifi/client/
+src/test/java/org/giwi/nifi/tester/
 ├── PipelineConverterTest.java  # Converter unit tests
 ├── SamplePipelineTest.java    # YAML sample tests
 ├── NiFiIntegrationTest.java   # NiFi integration tests

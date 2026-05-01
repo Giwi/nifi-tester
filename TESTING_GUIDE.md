@@ -48,20 +48,20 @@ curl -k https://localhost:8443/nifi-api/system-diagnostics
 ./gradlew test
 
 # Specific test class
-./gradlew test --tests "org.giwi.nifi.client.PipelineConverterTest"
+./gradlew test --tests "org.giwi.nifi.tester.PipelineConverterTest"
 ```
 
 ### Integration Tests (Requires Running NiFi)
 
 ```bash
 # Test 1: Simple Pipeline (1 Processor)
-./gradlew integrationTest --tests "org.giwi.nifi.client.NiFiIntegrationTest"
+./gradlew integrationTest --tests "org.giwi.nifi.tester.NiFiIntegrationTest"
 
 # Test 2: Comprehensive Pipeline Tests
-./gradlew integrationTest --tests "org.giwi.nifi.client.PipelineIntegrationTest"
+./gradlew integrationTest --tests "org.giwi.nifi.tester.PipelineIntegrationTest"
 
 # Test 3: Pipeline with Ports
-./gradlew integrationTest --tests "org.giwi.nifi.client.PipelineIntegrationTest.testPipelineWithPorts"
+./gradlew integrationTest --tests "org.giwi.nifi.tester.PipelineIntegrationTest.testPipelineWithPorts"
 ```
 
 ## New Features for Testing

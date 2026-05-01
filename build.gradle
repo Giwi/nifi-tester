@@ -13,7 +13,7 @@ def isSnapshot = versionProperties.getProperty('snapshot', 'true').toBoolean()
 version = isSnapshot ? "${baseVersion}-SNAPSHOT" : baseVersion
 
 application {
-    mainClass = 'org.giwi.nifi.client.PipelineTester'
+    mainClass = 'org.giwi.nifi.tester.PipelineTester'
 }
 
 group = 'org.giwi'
@@ -46,9 +46,9 @@ openApiGenerate {
     generatorName = "java"
     inputSpec = "./openapi/swagger.yaml"
     outputDir = "$buildDir/generated/java-client"
-    apiPackage = "org.giwi.nifi.client.api"
-    invokerPackage = "org.giwi.nifi.client.invoker"
-    modelPackage = "org.giwi.nifi.client.model"
+    apiPackage = "org.giwi.nifi.tester.api"
+    invokerPackage = "org.giwi.nifi.tester.invoker"
+    modelPackage = "org.giwi.nifi.tester.model"
     library = "resttemplate"
     skipValidateSpec = true
     configOptions = [
@@ -63,8 +63,6 @@ openApiGenerate {
 
 test {
     useJUnitPlatform()
-    // Exclude integration tests from standard test run
-    exclude '**/*IntegrationTest.class'
 
     // Show test results in console
     testLogging {
@@ -92,9 +90,9 @@ jacocoTestCoverageVerification {
     violationRules {
         rule {
             element = 'CLASS'
-            includes = ['org.giwi.nifi.client.PipelineConverter',
-                        'org.giwi.nifi.client.PipelineValidator',
-                        'org.giwi.nifi.client.PipelineTester']
+            includes = ['org.giwi.nifi.tester.PipelineConverter',
+                        'org.giwi.nifi.tester.PipelineValidator',
+                        'org.giwi.nifi.tester.PipelineTester']
             limit {
                 minimum = 0.80
             }

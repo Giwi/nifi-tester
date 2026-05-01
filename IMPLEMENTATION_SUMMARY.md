@@ -69,7 +69,7 @@ This project provides a Java client library for deploying Apache NiFi pipelines 
 ## Code Architecture
 
 ```
-src/main/java/org/giwi/nifi/client/
+src/main/java/org/giwi/nifi/tester/
 ├── PipelineTester.java              # Main deployment orchestrator
 ├── PipelineConverter.java           # YAML to API format conversion
 ├── PipelineValidator.java           # YAML validation before deployment
