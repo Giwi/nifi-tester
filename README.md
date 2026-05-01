@@ -1,5 +1,8 @@
 # NiFi Tester
 
+![Build](https://github.com/Giwi/nifi-tester/actions/workflows/build.yml/badge.svg)
+![Tag](https://img.shields.io/github/v/tag/Giwi/nifi-tester?label=version)
+
 Java client library for Apache NiFi REST API with YAML pipeline support.
 
 ## Features
