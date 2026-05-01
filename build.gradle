@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'application'
     id 'org.openapi.generator' version '7.14.0'
+    id 'jacoco'
 }
 
 // Read version from properties file
@@ -72,6 +73,32 @@ test {
         exceptionFormat "full"
         showCauses true
         showStackTraces true
+    }
+
+    // JaCoCo test coverage
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            includes = ['org.giwi.nifi.client.PipelineConverter',
+                        'org.giwi.nifi.client.PipelineValidator',
+                        'org.giwi.nifi.client.PipelineTester']
+            limit {
+                minimum = 0.80
+            }
+        }
     }
 }
 
