@@ -13,7 +13,7 @@ def isSnapshot = versionProperties.getProperty('snapshot', 'true').toBoolean()
 version = isSnapshot ? "${baseVersion}-SNAPSHOT" : baseVersion
 
 application {
-    mainClass = 'org.giwi.nifi.tester.PipelineTester'
+    mainClass = 'org.giwi.nifi.tester.PipelineManager'
 }
 
 group = 'org.giwi'
@@ -102,7 +102,7 @@ jacocoTestCoverageVerification {
         }
         rule {
             element = 'CLASS'
-            includes = ['org.giwi.nifi.tester.PipelineTester']
+            includes = ['org.giwi.nifi.tester.PipelineManager']
             limit {
                 minimum = 0.02
             }

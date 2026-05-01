@@ -5,11 +5,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class NiFiIntegrationTest {
 
-    private PipelineTester tester;
+    private PipelineManager tester;
 
     @BeforeEach
     void setUp() throws Exception {
-        tester = new PipelineTester(NiFiTestContainer.getApiUrl(), NiFiTestContainer.getUsername(), NiFiTestContainer.getPassword());
+        tester = new PipelineManager(NiFiTestContainer.getApiUrl(), NiFiTestContainer.getUsername(), NiFiTestContainer.getPassword());
     }
 
     @Test

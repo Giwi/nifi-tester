@@ -69,9 +69,9 @@ curl -k https://localhost:8443/nifi-api/system-diagnostics
 ### Dry-Run Mode
 Validate pipelines without deploying:
 ```java
-PipelineTester tester = new PipelineTester(url, user, pass);
+PipelineManager tester = new PipelineManager(url, user, pass);
 tester.setDryRun(true);
-PipelineTesterResult result = tester.deployPipeline(yamlFile, "root");
+PipelineManagerResult result = tester.deployPipeline(yamlFile, "root");
 // Result shows what would be created without actual deployment
 ```
 

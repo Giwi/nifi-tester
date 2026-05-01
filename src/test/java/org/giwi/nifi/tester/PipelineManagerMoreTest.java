@@ -23,13 +23,13 @@ import java.io.FileWriter;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class PipelineTesterMoreTest {
+class PipelineManagerMoreTest {
 
-    private PipelineTester tester;
+    private PipelineManager tester;
 
     @BeforeEach
     void setUp() {
-        tester = new PipelineTester("https://localhost:8443/nifi-api");
+        tester = new PipelineManager("https://localhost:8443/nifi-api");
     }
 
     @Test

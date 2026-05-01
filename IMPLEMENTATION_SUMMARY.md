@@ -21,10 +21,10 @@ This project provides a Java client library for deploying Apache NiFi pipelines 
 - **Export deployed pipelines back to YAML** (`--export` command)
 
 ### 3. **Pipeline Deployment**
-- `PipelineTester` class for pipeline deployment and management
+- `PipelineManager` class for pipeline deployment and management
 - Support for multiple constructor patterns:
-  - URL-based: `new PipelineTester(url, username, password)`
-  - Annotation-based: `new PipelineTester(testClass)` with `@NiFiConnection` annotation
+  - URL-based: `new PipelineManager(url, username, password)`
+  - Annotation-based: `new PipelineManager(testClass)` with `@NiFiConnection` annotation
 - Login and token management with Bearer authentication
 - Process group creation and management
 - Pipeline deployment from YAML files
@@ -70,7 +70,7 @@ This project provides a Java client library for deploying Apache NiFi pipelines 
 
 ```
 src/main/java/org/giwi/nifi/tester/
-├── PipelineTester.java              # Main deployment orchestrator
+├── PipelineManager.java              # Main deployment orchestrator
 ├── PipelineConverter.java           # YAML to API format conversion
 ├── PipelineValidator.java           # YAML validation before deployment
 ├── PipelineExporter.java           # Export process groups to YAML
@@ -336,9 +336,9 @@ class MyTest {
     
     @Test
     void deployPipeline() throws Exception {
-        PipelineTester tester = new PipelineTester(getClass());
+        PipelineManager tester = new PipelineManager(getClass());
         
-        PipelineTesterResult result = tester.deployPipeline(
+        PipelineManagerResult result = tester.deployPipeline(
             new File("pipeline.yaml"),
             "root"
         );

@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Retry logic for NiFi API calls with configurable max retries and delay
 - Dry-run mode for pipeline deployment (validate without deploying)
 - Strongly-typed classes: `ProcessorConfig`, `ConnectionConfig`
-- `AutoCloseable` support for `PipelineTester`
+- `AutoCloseable` support for `PipelineManager`
 - Unit tests for bends support and input validation
 - YAML schema documentation in README.md
 - `version.properties` file for JAR naming
@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial implementation of NiFi Pipeline Tester
 - YAML to NiFi API conversion (`PipelineConverter`)
-- Pipeline deployment (`PipelineTester`)
+- Pipeline deployment (`PipelineManager`)
 - Unit tests for converter
 - Integration tests with TestContainers
 - CLI support for deploying pipelines

@@ -20,20 +20,20 @@ import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class PipelineTesterUnitTest {
+class PipelineManagerUnitTest {
 
-    private PipelineTester tester;
+    private PipelineManager tester;
 
     @Test
     @DisplayName("Constructor with URL only")
     void testConstructorWithUrl() {
-        assertDoesNotThrow(() -> new PipelineTester("https://localhost:8443/nifi-api"));
+        assertDoesNotThrow(() -> new PipelineManager("https://localhost:8443/nifi-api"));
     }
 
     @Test
     @DisplayName("Set and check dry-run mode")
     void testDryRunMode() {
-        tester = new PipelineTester("https://localhost:8443/nifi-api");
+        tester = new PipelineManager("https://localhost:8443/nifi-api");
         assertFalse(tester.isDryRun());
 
         tester.setDryRun(true);
@@ -46,14 +46,14 @@ class PipelineTesterUnitTest {
     @Test
     @DisplayName("Close method does not throw")
     void testClose() {
-        tester = new PipelineTester("https://localhost:8443/nifi-api");
+        tester = new PipelineManager("https://localhost:8443/nifi-api");
         assertDoesNotThrow(() -> tester.close());
     }
 
     @Test
     @DisplayName("Get access token returns null before login")
     void testGetAccessTokenBeforeLogin() {
-        tester = new PipelineTester("https://localhost:8443/nifi-api");
+        tester = new PipelineManager("https://localhost:8443/nifi-api");
         // Before login, token should be null
         assertNull(tester.getAccessToken());
     }
@@ -63,13 +63,13 @@ class PipelineTesterUnitTest {
     void testConstructorWithCredentials() {
         // This will try to login, so we expect an exception since there's no real NiFi
         assertThrows(Exception.class, () ->
-            new PipelineTester("https://localhost:8443/nifi-api", "admin", "admin"));
+            new PipelineManager("https://localhost:8443/nifi-api", "admin", "admin"));
     }
 
     @Test
     @DisplayName("Get client returns ApiClient")
     void testGetClient() {
-        tester = new PipelineTester("https://localhost:8443/nifi-api");
+        tester = new PipelineManager("https://localhost:8443/nifi-api");
         assertNotNull(tester.getClient());
         assertTrue(tester.getClient() instanceof ApiClient);
     }

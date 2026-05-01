@@ -37,7 +37,7 @@ import java.util.Map;
  * @version 1.0-SNAPSHOT
  */
 public class PipelineExporter {
-    private final PipelineTester tester;
+    private final PipelineManager tester;
     private final ObjectMapper mapper;
 
     /**
@@ -49,7 +49,7 @@ public class PipelineExporter {
      * @throws Exception if login fails
      */
     public PipelineExporter(String nifiUrl, String username, String password) throws Exception {
-        this.tester = new PipelineTester(nifiUrl, username, password);
+        this.tester = new PipelineManager(nifiUrl, username, password);
         this.mapper = new ObjectMapper();
         this.mapper.findAndRegisterModules();
     }

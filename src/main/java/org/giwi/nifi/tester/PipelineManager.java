@@ -46,17 +46,17 @@ import java.util.Map;
  * <p>Usage examples:
  * <pre>{@code
  * // Connect to NiFi
- * PipelineTester tester = new PipelineTester(url, username, password);
+ * PipelineManager tester = new PipelineManager(url, username, password);
  *
  * // Deploy pipeline
- * PipelineTesterResult result = tester.deployPipeline(yamlFile, "root");
+ * PipelineManagerResult result = tester.deployPipeline(yamlFile, "root");
  * }</pre>
  *
  * @author GiWi
  * @version 1.0-SNAPSHOT
  */
-public class PipelineTester implements AutoCloseable {
-    private static final Logger log = LoggerFactory.getLogger(PipelineTester.class);
+public class PipelineManager implements AutoCloseable {
+    private static final Logger log = LoggerFactory.getLogger(PipelineManager.class);
 
     private final ApiClient client;
     private final PipelineConverter converter;
@@ -116,23 +116,23 @@ public class PipelineTester implements AutoCloseable {
     }
 
     /**
-     * Creates a PipelineTester with the specified NiFi URL.
+     * Creates a PipelineManager with the specified NiFi URL.
      *
      * @param nifiUrl The NiFi API base URL
      */
-    public PipelineTester(String nifiUrl) {
+    public PipelineManager(String nifiUrl) {
         this.client = new ApiClient();
         this.client.setBasePath(nifiUrl);
         this.converter = new PipelineConverter();
     }
 
     /**
-     * Creates a PipelineTester using connection details from {@link NiFiConnection} annotation.
+     * Creates a PipelineManager using connection details from {@link NiFiConnection} annotation.
      *
      * @param element The annotated element (class or method) to read annotation from
      * @throws Exception if login fails
      */
-    public PipelineTester(AnnotatedElement element) throws Exception {
+    public PipelineManager(AnnotatedElement element) throws Exception {
         String url = "https://localhost:8443/nifi-api";
         String user = "admin";
         String password = "admin";
@@ -156,14 +156,14 @@ public class PipelineTester implements AutoCloseable {
     }
 
     /**
-     * Creates a PipelineTester with the specified NiFi URL and credentials.
+     * Creates a PipelineManager with the specified NiFi URL and credentials.
      *
      * @param nifiUrl  The NiFi API base URL
      * @param username The username for authentication
      * @param password The password for authentication
      * @throws Exception if login fails
      */
-    public PipelineTester(String nifiUrl, String username, String password) throws Exception {
+    public PipelineManager(String nifiUrl, String username, String password) throws Exception {
         this(nifiUrl);
         login(username, password);
     }
@@ -195,10 +195,10 @@ public class PipelineTester implements AutoCloseable {
      * Deploys a pipeline from a YAML file to the root process group.
      *
      * @param yamlFile The YAML file containing the pipeline definition
-     * @return A PipelineTesterResult with deployment status
+     * @return A PipelineManagerResult with deployment status
      * @throws IOException if the file cannot be read
      */
-    public PipelineTesterResult deployPipeline(File yamlFile) throws IOException {
+    public PipelineManagerResult deployPipeline(File yamlFile) throws IOException {
         if (yamlFile == null) {
             throw new IllegalArgumentException("YAML file cannot be null");
         }
@@ -208,7 +208,7 @@ public class PipelineTester implements AutoCloseable {
         return deployPipeline(yamlFile, "root");
     }
 
-    public PipelineTesterResult deployPipeline(File yamlFile, String parentGroupId) throws IOException {
+    public PipelineManagerResult deployPipeline(File yamlFile, String parentGroupId) throws IOException {
         if (yamlFile == null) {
             throw new IllegalArgumentException("YAML file cannot be null");
         }
@@ -220,7 +220,7 @@ public class PipelineTester implements AutoCloseable {
         PipelineValidator validator = new PipelineValidator();
         List<String> validationErrors = validator.validate(yamlFile);
         if (!validationErrors.isEmpty()) {
-            PipelineTesterResult result = new PipelineTesterResult();
+            PipelineManagerResult result = new PipelineManagerResult();
             result.setSuccess(false);
             result.setMessage("Validation failed:\n" + String.join("\n", validationErrors));
             log.error("Pipeline validation failed: {}", validationErrors);
@@ -235,8 +235,8 @@ public class PipelineTester implements AutoCloseable {
     }
 
     @SuppressWarnings("unchecked")
-    public PipelineTesterResult deployPipeline(Map<String, Object> pipelineData, String parentGroupId) {
-        PipelineTesterResult result = new PipelineTesterResult();
+    public PipelineManagerResult deployPipeline(Map<String, Object> pipelineData, String parentGroupId) {
+        PipelineManagerResult result = new PipelineManagerResult();
         Map<String, String> processorIdMap = new HashMap<>();
         Map<String, String> inputPortIdMap = new HashMap<>();
         Map<String, String> outputPortIdMap = new HashMap<>();
@@ -1186,7 +1186,7 @@ public class PipelineTester implements AutoCloseable {
      * Results from a pipeline deployment operation.
      * Contains success status, message, and created process group ID.
      */
-    public static class PipelineTesterResult {
+    public static class PipelineManagerResult {
         private boolean success;
         private String message;
         private String processGroupId;
@@ -1226,7 +1226,7 @@ public class PipelineTester implements AutoCloseable {
     }
 
     /**
-     * Closes the PipelineTester and cleans up resources.
+     * Closes the PipelineManager and cleans up resources.
      * Logs out from NiFi if an access token exists.
      */
     @Override
@@ -1389,7 +1389,7 @@ public class PipelineTester implements AutoCloseable {
         }
         if (statusPgId != null) {
             try {
-                PipelineTester tester = new PipelineTester(url, user, pass);
+                PipelineManager tester = new PipelineManager(url, user, pass);
                 org.giwi.nifi.tester.api.ProcessGroupsApi pgApi =
                     new org.giwi.nifi.tester.api.ProcessGroupsApi(tester.getClient());
                 var pgEntity = pgApi.getProcessGroup(statusPgId);
@@ -1420,8 +1420,8 @@ public class PipelineTester implements AutoCloseable {
             System.out.println("  File: " + file);
             System.out.println("  Parent Group: " + parent);
 
-            PipelineTester tester = new PipelineTester(url, user, pass);
-            PipelineTesterResult result = tester.deployPipeline(new java.io.File(file), parent);
+            PipelineManager tester = new PipelineManager(url, user, pass);
+            PipelineManagerResult result = tester.deployPipeline(new java.io.File(file), parent);
 
             if (result.isSuccess()) {
                 System.out.println("Pipeline deployed successfully!");

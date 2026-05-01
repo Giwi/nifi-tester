@@ -7,7 +7,7 @@ import java.lang.annotation.*;
  *
  * <p>This annotation can be applied to test classes or methods to specify
  * the NiFi instance connection details. When used with {@link NiFiConnectionExtension},
- * it automatically configures the {@link PipelineTester} with the specified
+ * it automatically configures the {@link PipelineManager} with the specified
  * connection parameters.</p>
  *
  * <p>Example usage:</p>

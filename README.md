@@ -117,7 +117,7 @@ Expected JSON structure:
 
 ```java
 // Connect to NiFi
-PipelineTester tester = new PipelineTester(
+PipelineManager tester = new PipelineManager(
     "http://localhost:8080/nifi-api",
     "admin",
     "password"
@@ -127,14 +127,14 @@ PipelineTester tester = new PipelineTester(
 tester.setDryRun(true);
 
 // Deploy pipeline from YAML
-PipelineTester.PipelineTesterResult result = tester.deployPipeline(
+PipelineManager.PipelineManagerResult result = tester.deployPipeline(
     new File("pipeline.yaml"),
     "root"
 );
 
 // Use with try-with-resources for auto-cleanup
-try (PipelineTester tester = new PipelineTester(url, username, password)) {
-    PipelineTesterResult result = tester.deployPipeline(yamlFile, "root");
+try (PipelineManager tester = new PipelineManager(url, username, password)) {
+    PipelineManagerResult result = tester.deployPipeline(yamlFile, "root");
     if (result.isSuccess()) {
         System.out.println("Created: " + result.getProcessGroupId());
     }
@@ -266,8 +266,8 @@ class MyIntegrationTest {
 
     @Test
     void testDeploy() {
-        PipelineTester tester = new PipelineTester(getClass());
-        PipelineTesterResult result = tester.deployPipeline(new File("pipeline.yaml"), "root");
+        PipelineManager tester = new PipelineManager(getClass());
+        PipelineManagerResult result = tester.deployPipeline(new File("pipeline.yaml"), "root");
         assertTrue(result.isSuccess());
     }
 }
@@ -296,7 +296,7 @@ class MyIntegrationTest {
 ```
 src/main/java/org/giwi/nifi/tester/
 ├── PipelineConverter.java      # YAML to NiFi API converter
-├── PipelineTester.java         # NiFi deployment client
+├── PipelineManager.java         # NiFi deployment client
 ├── PipelineValidator.java      # YAML validation before deployment
 ├── PipelineExporter.java      # Export process groups to YAML
 ├── PipelineTemplates.java      # Save/load reusable templates
