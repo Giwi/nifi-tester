@@ -1,0 +1,169 @@
+name: Database Pipeline Sample
+description: A pipeline that reads from database, transforms data, and writes to another database
+parentGroupId: root
+
+processors:
+  # Query Database
+  - name: QueryDatabase
+    type: org.apache.nifi.processors.standard.QueryDatabaseTable
+    x: 100
+    y: 100
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 min"
+    properties:
+      Database Connection Pooling Service: "${DBService}"
+      Table Name: users
+      Columns to Fetch: id,name,email,created_at
+
+  # Convert to JSON
+  - name: ConvertToJSON
+    type: org.apache.nifi.processors.standard.ConvertRecord
+    x: 350
+    y: 100
+    properties:
+      Record Reader: "${CSVReader}"
+      Record Writer: "${JSONWriter}"
+
+  # Transform with Jolt
+  - name: TransformData
+    type: org.apache.nifi.processors.jolt.JoltTransformJSON
+    x: 600
+    y: 100
+    properties:
+      Jolt Transform: |
+        [
+          {
+            "operation": "shift",
+            "spec": {
+              "id": "user.id",
+              "name": "user.fullName",
+              "email": "user.email",
+              "created_at": "user.registered"
+            }
+          }
+        ]
+
+  # Put to Database
+  - name: WriteToDatabase
+    type: org.apache.nifi.processors.standard.PutDatabaseRecord
+    x: 850
+    y: 100
+    properties:
+      Database Connection Pooling Service: "${DBService}"
+      Table Name: transformed_users
+      Record Writer: "${JsonWriter}"
+
+  # Log on success
+  - name: LogSuccess
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 1100
+    y: 50
+    properties:
+      Log Level: info
+      Log Prefix: "Success: "
+    autoTerminatedRelationships:
+      - success
+
+  # Log on failure
+  - name: LogFailure
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 850
+    y: 250
+    properties:
+      Log Level: error
+      Log Prefix: "Failed: "
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  # Query to Convert
+  - name: Query to Convert
+    sourceId: ${QueryDatabase}
+    destinationId: ${ConvertToJSON}
+    relationships:
+      - success
+    x: 225
+    y: 100
+
+  # Convert to Transform
+  - name: Convert to Transform
+    sourceId: ${ConvertToJSON}
+    destinationId: ${TransformData}
+    relationships:
+      - success
+    x: 475
+    y: 100
+
+  # Transform to Write
+  - name: Transform to Write
+    sourceId: ${TransformData}
+    destinationId: ${WriteToDatabase}
+    relationships:
+      - success
+    x: 725
+    y: 100
+
+  # Write to Log
+  - name: Write to Log
+    sourceId: ${WriteToDatabase}
+    destinationId: ${LogSuccess}
+    relationships:
+      - success
+    x: 975
+    y: 75
+
+  # Failure route
+  - name: Query on Failure
+    sourceId: ${QueryDatabase}
+    destinationId: ${LogFailure}
+    relationships:
+      - failure
+    x: 225
+    y: 200
+
+  - name: Convert on Failure
+    sourceId: ${ConvertToJSON}
+    destinationId: ${LogFailure}
+    relationships:
+      - failure
+    x: 475
+    y: 200
+
+  - name: Transform on Failure
+    sourceId: ${TransformData}
+    destinationId: ${LogFailure}
+    relationships:
+      - failure
+    x: 725
+    y: 200
+
+  - name: Write on Failure
+    sourceId: ${WriteToDatabase}
+    destinationId: ${LogFailure}
+    relationships:
+      - failure
+    x: 975
+    y: 200
+
+# Controller Services (references used above)
+controllerServices:
+  - name: DBService
+    type: org.apache.nifi.dbcp.DBCPConnectionPool
+    properties:
+      Database Connection URL: jdbc:mysql://localhost:3306/mydb
+      Database Driver Class Name: com.mysql.cj.jdbc.Driver
+      Database User: admin
+      Password: password
+
+  - name: CSVReader
+    type: org.apache.nifi.csv.CSVReader
+    properties:
+      Schema Access Strategy: schema-branches
+      CSV Format: Custom
+      Value Separator: ","
+
+  - name: JSONWriter
+    type: org.apache.nifi.json.JsonRecordSetWriter
+    properties:
+      Schema Write Strategy: full
+      Pretty Print JSON: true

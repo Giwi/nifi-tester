@@ -1,0 +1,163 @@
+name: Monitoring Pipeline
+description: Monitor system metrics and send alerts
+parentGroupId: root
+
+processors:
+  # Generate metrics
+  - name: GenerateMetrics
+    type: org.apache.nifi.processors.standard.GenerateFlowFile
+    x: 100
+    y: 100
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 min"
+    properties:
+      File Size: 1KB
+      Text: '{"cpu": 85, "memory": 70, "disk": 90, "timestamp": "${now()}"}'
+
+  # Parse JSON
+  - name: ParseMetrics
+    type: org.apache.nifi.processors.standard.EvaluateJsonPath
+    x: 350
+    y: 100
+    properties:
+      cpu: "$.cpu"
+      memory: "$.memory"
+      disk: "$.disk"
+      timestamp: "$.timestamp"
+
+  # Check CPU threshold
+  - name: CheckCPU
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 600
+    y: 50
+    properties:
+      '${cpu:gt(80)}': HIGH_CPU
+      '${cpu:le(80)}': NORMAL_CPU
+
+  # Check Memory threshold
+  - name: CheckMemory
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 600
+    y: 150
+    properties:
+      '${memory:gt(75)}': HIGH_MEMORY
+      '${memory:le(75)}': NORMAL_MEMORY
+
+  # Check Disk threshold
+  - name: CheckDisk
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 600
+    y: 250
+    properties:
+      '${disk:gt(85)}': HIGH_DISK
+      '${disk:le(85)}': NORMAL_DISK
+
+  # Send CPU alert
+  - name: AlertCPU
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 850
+    y: 50
+    properties:
+      Log Level: warn
+      Log Prefix: "HIGH CPU ALERT: "
+    autoTerminatedRelationships:
+      - success
+
+  # Send Memory alert
+  - name: AlertMemory
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 850
+    y: 150
+    properties:
+      Log Level: warn
+      Log Prefix: "HIGH MEMORY ALERT: "
+    autoTerminatedRelationships:
+      - success
+
+  # Send Disk alert
+  - name: AlertDisk
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 850
+    y: 250
+    properties:
+      Log Level: error
+      Log Prefix: "HIGH DISK ALERT: "
+    autoTerminatedRelationships:
+      - success
+
+  # Log normal operation
+  - name: LogNormal
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 600
+    y: 400
+    properties:
+      Log Level: info
+      Log Prefix: "System Normal: "
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  - name: Generate to Parse
+    sourceId: ${GenerateMetrics}
+    destinationId: ${ParseMetrics}
+    relationships:
+      - success
+    x: 225
+    y: 100
+
+  - name: Parse to CPU Check
+    sourceId: ${ParseMetrics}
+    destinationId: ${CheckCPU}
+    relationships:
+      - matched
+    x: 475
+    y: 75
+
+  - name: CPU to Memory Check
+    sourceId: ${CheckCPU}
+    destinationId: ${CheckMemory}
+    relationships:
+      - NORMAL_CPU
+    x: 725
+    y: 125
+
+  - name: Memory to Disk Check
+    sourceId: ${CheckMemory}
+    destinationId: ${CheckDisk}
+    relationships:
+      - NORMAL_MEMORY
+    x: 725
+    y: 175
+
+  - name: Disk to Normal
+    sourceId: ${CheckDisk}
+    destinationId: ${LogNormal}
+    relationships:
+      - NORMAL_DISK
+    x: 725
+    y: 325
+
+  # Alerts
+  - name: High CPU Alert
+    sourceId: ${CheckCPU}
+    destinationId: ${AlertCPU}
+    relationships:
+      - HIGH_CPU
+    x: 725
+    y: 50
+
+  - name: High Memory Alert
+    sourceId: ${CheckMemory}
+    destinationId: ${AlertMemory}
+    relationships:
+      - HIGH_MEMORY
+    x: 725
+    y: 150
+
+  - name: High Disk Alert
+    sourceId: ${CheckDisk}
+    destinationId: ${AlertDisk}
+    relationships:
+      - HIGH_DISK
+    x: 725
+    y: 250

@@ -1,0 +1,144 @@
+name: Kafka Pipeline Sample
+description: Consume from Kafka topic, process messages, and publish to another topic
+parentGroupId: root
+
+processors:
+  # Consume from Kafka
+  - name: ConsumeKafka
+    type: org.apache.nifi.processors.kafka.ConsumeKafka
+    x: 100
+    y: 100
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 sec"
+    properties:
+      Kafka Brokers: localhost:9092
+      Topic(s): input-topic
+      Group ID: nifi-consumer-group
+      Offset Reset: latest
+
+  # Parse JSON
+  - name: ParseJSON
+    type: org.apache.nifi.processors.standard.SplitJson
+    x: 350
+    y: 100
+    properties:
+      JsonPath Expression: $.*
+
+  # Validate
+  - name: ValidateRecord
+    type: org.apache.nifi.processors.standard.ValidateRecord
+    x: 600
+    y: 100
+    properties:
+      Record Reader: "${JsonReader}"
+      Schema Access Strategy: schema-reference
+      Schema Registry: "${SchemaRegistry}"
+
+  # Route content
+  - name: RouteOnAttribute
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 850
+    y: 100
+    properties:
+      '${record.type:equals("VALID")}': VALID
+      '${record.type:equals("INVALID")}': INVALID
+
+  # Publish to Kafka (valid)
+  - name: PublishValid
+    type: org.apache.nifi.processors.kafka.PublishKafka
+    x: 1100
+    y: 50
+    properties:
+      Kafka Brokers: localhost:9092
+      Topic Name: valid-topic
+      Client Name: nifi-producer-valid
+
+  # Publish to Kafka (invalid)
+  - name: PublishInvalid
+    type: org.apache.nifi.processors.kafka.PublishKafka
+    x: 1100
+    y: 150
+    properties:
+      Kafka Brokers: localhost:9092
+      Topic Name: invalid-topic
+      Client Name: nifi-producer-invalid
+
+  # Log invalid messages
+  - name: LogInvalid
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 850
+    y: 250
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  - name: Consume to Parse
+    sourceId: ${ConsumeKafka}
+    destinationId: ${ParseJSON}
+    relationships:
+      - success
+    x: 225
+    y: 100
+
+  - name: Parse to Validate
+    sourceId: ${ParseJSON}
+    destinationId: ${ValidateRecord}
+    relationships:
+      - split
+    x: 475
+    y: 100
+
+  - name: Validate to Route
+    sourceId: ${ValidateRecord}
+    destinationId: ${RouteOnAttribute}
+    relationships:
+      - valid
+    x: 725
+    y: 100
+
+  - name: Route to Valid Publish
+    sourceId: ${RouteOnAttribute}
+    destinationId: ${PublishValid}
+    relationships:
+      - VALID
+    x: 975
+    y: 75
+
+  - name: Route to Invalid Publish
+    sourceId: ${RouteOnAttribute}
+    destinationId: ${PublishInvalid}
+    relationships:
+      - INVALID
+    x: 975
+    y: 125
+
+  - name: Invalid to Log
+    sourceId: ${RouteOnAttribute}
+    destinationId: ${LogInvalid}
+    relationships:
+      - unmatched
+    x: 850
+    y: 250
+
+  # Failure routes
+  - name: Consume Failure
+    sourceId: ${ConsumeKafka}
+    destinationId: ${LogInvalid}
+    relationships:
+      - failure
+    x: 225
+    y: 200
+
+controllerServices:
+  - name: JsonReader
+    type: org.apache.nifi.json.JsonTreeReader
+    properties:
+      Schema Access Strategy: schema-reference
+      Schema Registry: "${SchemaRegistry}"
+
+  - name: SchemaRegistry
+    type: org.apache.nifi.confluent.SchemaRegistry
+    properties:
+      Schema Registry URLs: http://localhost:8081
+      Basic Authentication Username: admin
+      Basic Authentication Password: admin123

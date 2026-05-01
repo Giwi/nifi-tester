@@ -1,0 +1,171 @@
+name: Error Handling Pipeline
+description: Demonstrates retry logic, failure routing, and error handling
+parentGroupId: root
+
+processors:
+  # Main processor (prone to failure)
+  - name: ProcessData
+    type: org.apache.nifi.processors.standard.ExecuteSQL
+    x: 400
+    y: 100
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "30 sec"
+    properties:
+      Database Connection Pooling Service: "${DBService}"
+      SQL select query: SELECT * FROM large_table
+    relations:
+      - success
+      - failure
+
+  # Retry on failure (using RouteOnAttribute)
+  - name: CheckRetryCount
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 650
+    y: 100
+    properties:
+      '${retry.count:equals("0")}': FIRST_RETRY
+      '${retry.count:equals("1")}': SECOND_RETRY
+      '${retry.count:gt(1)}': MAX_RETRIES_REACHED
+
+  # Wait before retry
+  - name: WaitBeforeRetry
+    type: org.apache.nifi.processors.standard.ControlRate
+    x: 650
+    y: 50
+    properties:
+      Rate Control Criteria: flowfile count
+      Maximum Requests Per Time Period: 1
+      Time Period: 10 sec
+
+  # Update retry count attribute
+  - name: IncrementRetry
+    type: org.apache.nifi.processors.standard.UpdateAttribute
+    x: 650
+    y: 200
+    properties:
+      retry.count: "${retry.count:plus(1)}"
+
+  # Log retry attempt
+  - name: LogRetry
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 650
+    y: 350
+    properties:
+      Log Level: warn
+      Log Prefix: "Retry attempt: "
+    autoTerminatedRelationships:
+      - success
+
+  # Send to failure queue after max retries
+  - name: MoveToFailureQueue
+    type: org.apache.nifi.processors.standard.PutFile
+    x: 900
+    y: 200
+    properties:
+      Directory: /data/failed
+      Conflict Resolution Strategy: rename
+
+  # Alert on max retries
+  - name: AlertMaxRetries
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 900
+    y: 350
+    properties:
+      Log Level: error
+      Log Prefix: "MAX RETRIES REACHED: "
+    autoTerminatedRelationships:
+      - success
+
+  # Success handling
+  - name: OnSuccess
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 400
+    y: 250
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  # Main flow
+  - name: Process to Check
+    sourceId: ${ProcessData}
+    destinationId: ${CheckRetryCount}
+    relationships:
+      - failure
+    x: 525
+    y: 100
+
+  - name: Process to Success
+    sourceId: ${ProcessData}
+    destinationId: ${OnSuccess}
+    relationships:
+      - success
+    x: 400
+    y: 175
+
+  # Retry flow
+  - name: First Retry
+    sourceId: ${CheckRetryCount}
+    destinationId: ${WaitBeforeRetry}
+    relationships:
+      - FIRST_RETRY
+    x: 650
+    y: 75
+
+  - name: Second Retry
+    sourceId: ${CheckRetryCount}
+    destinationId: ${WaitBeforeRetry}
+    relationships:
+      - SECOND_RETRY
+    x: 650
+    y: 100
+
+  - name: Wait to Increment
+    sourceId: ${WaitBeforeRetry}
+    destinationId: ${IncrementRetry}
+    relationships:
+      - success
+    x: 650
+    y: 125
+
+  - name: Increment to Log
+    sourceId: ${IncrementRetry}
+    destinationId: ${LogRetry}
+    relationships:
+      - success
+    x: 650
+    y: 275
+
+  # Loop back to retry (reset retry attributes)
+  - name: Retry Loop
+    sourceId: ${IncrementRetry}
+    destinationId: ${CheckRetryCount}
+    relationships:
+      - success
+    x: 650
+    y: 225
+
+  # Max retries reached
+  - name: Max Retries
+    sourceId: ${CheckRetryCount}
+    destinationId: ${MoveToFailureQueue}
+    relationships:
+      - MAX_RETRIES_REACHED
+    x: 775
+    y: 200
+
+  - name: Alert on Max
+    sourceId: ${CheckRetryCount}
+    destinationId: ${AlertMaxRetries}
+    relationships:
+      - MAX_RETRIES_REACHED
+    x: 775
+    y: 350
+
+controllerServices:
+  - name: DBService
+    type: org.apache.nifi.dbcp.DBCPConnectionPool
+    properties:
+      Database Connection URL: jdbc:mysql://localhost:3306/mydb
+      Database Driver Class Name: com.mysql.cj.jdbc.Driver
+      Database User: admin
+      Password: password

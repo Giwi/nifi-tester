@@ -1,0 +1,198 @@
+name: File Ingestion Pipeline
+description: Monitor directory, process files, and archive them
+parentGroupId: root
+
+processors:
+  # List files
+  - name: ListFiles
+    type: org.apache.nifi.processors.standard.ListFile
+    x: 100
+    y: 100
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "1 min"
+    properties:
+      Input Directory: /data/input
+      Recurse Subdirectories: true
+      File Filter: ".*\\.csv"
+      Minimum File Age: 10 sec
+
+  # Fetch file content
+  - name: FetchFile
+    type: org.apache.nifi.processors.standard.FetchFile
+    x: 350
+    y: 100
+    properties:
+      Completion Strategy: Move File
+      Move Destination Directory: /data/processing
+      Log Level: INFO
+
+  # Parse CSV
+  - name: ParseCSV
+    type: org.apache.nifi.processors.standard.ConvertRecord
+    x: 600
+    y: 100
+    properties:
+      Record Reader: "${CSVReader}"
+      Record Writer: "${JSONWriter}"
+
+  # Validate records
+  - name: ValidateData
+    type: org.apache.nifi.processors.standard.ValidateRecord
+    x: 850
+    y: 100
+    properties:
+      Record Reader: "${JSONReader}"
+      Schema Access Strategy: schema-name
+      Schema Name: user-schema
+
+  # Route valid/invalid
+  - name: RouteValid
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 1100
+    y: 100
+    properties:
+      '${record.valid:equals("true")}': VALID
+      '${record.valid:equals("false")}': INVALID
+
+  # Put to database (valid)
+  - name: PutToDatabase
+    type: org.apache.nifi.processors.standard.PutDatabaseRecord
+    x: 1350
+    y: 50
+    properties:
+      Database Connection Pooling Service: "${DBService}"
+      Table Name: imported_data
+      Record Writer: "${JSONWriter}"
+
+  # Move invalid files
+  - name: MoveInvalid
+    type: org.apache.nifi.processors.standard.PutFile
+    x: 1350
+    y: 150
+    properties:
+      Directory: /data/invalid
+      Conflict Resolution Strategy: rename
+
+  # Archive processed files
+  - name: ArchiveFiles
+    type: org.apache.nifi.processors.standard.PutFile
+    x: 350
+    y: 250
+    properties:
+      Directory: /data/archive
+      Conflict Resolution Strategy: rename
+
+connections:
+  - name: List to Fetch
+    sourceId: ${ListFiles}
+    destinationId: ${FetchFile}
+    relationships:
+      - success
+    x: 225
+    y: 100
+
+  - name: Fetch to Parse
+    sourceId: ${FetchFile}
+    destinationId: ${ParseCSV}
+    relationships:
+      - success
+    x: 475
+    y: 100
+
+  - name: Parse to Validate
+    sourceId: ${ParseCSV}
+    destinationId: ${ValidateData}
+    relationships:
+      - success
+    x: 725
+    y: 100
+
+  - name: Validate to Route
+    sourceId: ${ValidateData}
+    destinationId: ${RouteValid}
+    relationships:
+      - valid
+    x: 975
+    y: 100
+
+  - name: Route to DB
+    sourceId: ${RouteValid}
+    destinationId: ${PutToDatabase}
+    relationships:
+      - VALID
+    x: 1225
+    y: 75
+
+  - name: Route to Invalid
+    sourceId: ${RouteValid}
+    destinationId: ${MoveInvalid}
+    relationships:
+      - INVALID
+    x: 1225
+    y: 125
+
+  # Failure routes
+  - name: List Failure
+    sourceId: ${ListFiles}
+    destinationId: ${ArchiveFiles}
+    relationships:
+      - failure
+    x: 225
+    y: 200
+
+  - name: Fetch Failure
+    sourceId: ${FetchFile}
+    destinationId: ${ArchiveFiles}
+    relationships:
+      - failure
+    x: 475
+    y: 200
+
+  - name: Parse Failure
+    sourceId: ${ParseCSV}
+    destinationId: ${ArchiveFiles}
+    relationships:
+      - failure
+    x: 725
+    y: 200
+
+  - name: Validate Failure
+    sourceId: ${ValidateData}
+    destinationId: ${ArchiveFiles}
+    relationships:
+      - failure
+    x: 975
+    y: 200
+
+  - name: DB Failure
+    sourceId: ${PutToDatabase}
+    destinationId: ${ArchiveFiles}
+    relationships:
+      - failure
+    x: 1225
+    y: 200
+
+controllerServices:
+  - name: CSVReader
+    type: org.apache.nifi.csv.CSVReader
+    properties:
+      Schema Access Strategy: schema-name
+      Schema Name: user-schema
+      CSV Format: Custom
+      Value Separator: ","
+
+  - name: JSONReader
+    type: org.apache.nifi.json.JsonTreeReader
+
+  - name: JSONWriter
+    type: org.apache.nifi.json.JsonRecordSetWriter
+    properties:
+      Pretty Print JSON: true
+
+  - name: DBService
+    type: org.apache.nifi.dbcp.DBCPConnectionPool
+    properties:
+      Database Connection URL: jdbc:mysql://localhost:3306/mydb
+      Database Driver Class Name: com.mysql.cj.jdbc.Driver
+      Database User: admin
+      Password: password
