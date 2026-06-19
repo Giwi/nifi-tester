@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NiFi Tester — YAML pipeline testing for Apache NiFi</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b22;
+      --bg-code: #1c2333;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --w: 960px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 400 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: var(--w); margin: 0 auto; padding: 0 24px; }
+
+    /* Header */
+    header { padding: 56px 0 16px; text-align: center; }
+    header h1 { font-size: 3rem; font-weight: 700; letter-spacing: -0.02em; }
+    header .tagline { color: var(--muted); font-size: 1.05rem; margin-top: 4px; }
+    .badge-line { margin-top: 16px; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+    .badge-line a { font-size: 0.95rem; }
+    .badge-line a:hover { text-decoration: none; }
+    .badge-line img { height: 22px; vertical-align: middle; }
+
+    /* Sections */
+    section { padding: 48px 0; }
+    section + section { border-top: 1px solid var(--border); }
+    h2 { font-size: 1.65rem; font-weight: 700; margin-bottom: 20px; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 4px; }
+    .intro p + p { margin-top: 12px; }
+
+    /* Feature grid */
+    .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 4px; }
+    @media (max-width: 800px) { .f-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .f-grid { grid-template-columns: 1fr; } }
+    .f-item { }
+    .f-item .emoji { font-size: 1.5rem; display: block; margin-bottom: 2px; }
+    .f-item p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+    /* Code blocks */
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font: 0.83rem/1.55 "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+      margin: 10px 0;
+      white-space: pre;
+    }
+    code {
+      font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    }
+    p code, li code {
+      background: var(--bg2);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+
+    /* Sample scenarios */
+    .sample { margin-bottom: 36px; }
+    .sample .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 6px; }
+
+    Tables
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 600; }
+    td:first-child { white-space: nowrap; }
+    td:last-child { color: var(--muted); }
+
+    footer { text-align: center; padding: 40px 0; color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+    footer span { margin: 0 6px; color: var(--border); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>NiFi Tester</h1>
+    <p class="tagline">YAML pipeline deployment &amp; testing for Apache NiFi</p>
+    <div class="badge-line">
+      <a href="https://github.com/Giwi/nifi-tester">&#x1F4BB; GitHub</a>
+      <a href="https://github.com/Giwi/nifi-tester/actions/workflows/release.yml">
+        <img src="https://github.com/Giwi/nifi-tester/actions/workflows/release.yml/badge.svg?branch=main" alt="Build">
+      </a>
+      <a href="https://img.shields.io/github/v/tag/Giwi/nifi-tester">
+        <img src="https://img.shields.io/github/v/tag/Giwi/nifi-tester?label=version" alt="Version">
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+<section class="intro">
+  <h2>Overview</h2>
+  <p>
+    <strong>NiFi Tester</strong> is a Java client library and CLI tool for deploying, testing, and managing
+    <a href="https://nifi.apache.org/">Apache NiFi</a> dataflows using declarative <strong>YAML</strong> configuration.
+    Define your entire flow — processors, connections, controller services, ports, funnels, and nested process groups —
+    in a single portable YAML file, and deploy it to any NiFi instance with one command.
+  </p>
+  <p>
+    Built on auto-generated REST clients from NiFi's OpenAPI spec, with YAML-to-NiFi conversion, pipeline validation,
+    dry-run mode, JUnit 5 integration, and reusable YAML templates.
+  </p>
+</section>
+
+<section>
+  <h2>Features</h2>
+  <div class="f-grid">
+    <div class="f-item">
+      <span class="emoji">&#x1F4C4;</span>
+      <h3>YAML Pipeline Definition</h3>
+      <p>Define processors, connections, controller services, ports, funnels, and nested process groups in a single YAML file.</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F3AE;</span>
+      <h3>CLI Deployment</h3>
+      <p>Deploy pipelines with one command: <code>nifi-tester --file pipeline.yaml</code></p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x2699;&#xFE0F;</span>
+      <h3>Java API</h3>
+      <p>Programmatic access via <code>PipelineManager</code> with try-with-resources support.</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F6A7;</span>
+      <h3>Dry-Run Mode</h3>
+      <p>Validate YAML syntax and references without deploying to NiFi.</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F4E4;</span>
+      <h3>Export to YAML</h3>
+      <p>Export deployed process groups back to YAML format (<code>--export</code>).</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F504;</span>
+      <h3>NiFi JSON Conversion</h3>
+      <p>Convert existing NiFi JSON flow definitions to YAML (<code>--convert</code>).</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x2705;</span>
+      <h3>Pipeline Validation</h3>
+      <p>Validates references, types, and structure before deployment.</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F4CB;</span>
+      <h3>YAML Templates</h3>
+      <p>Save and load reusable pipeline snippets (<code>--save-template</code> / <code>--load-template</code>).</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F50D;</span>
+      <h3>Interactive Mode</h3>
+      <p>Explore NiFi: list groups, show group details (<code>--list-groups</code>, <code>--show-group</code>).</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F9EA;</span>
+      <h3>JUnit 5 Integration</h3>
+      <p>Use <code>@NiFiConnection</code> annotation for integration tests.</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F501;</span>
+      <h3>Automatic Retry</h3>
+      <p>Built-in retry logic for transient API failures.</p>
+    </div>
+    <div class="f-item">
+      <span class="emoji">&#x1F4A5;</span>
+      <h3>AutoCloseable</h3>
+      <p>Use with try-with-resources for automatic cleanup of deployed resources.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Quick Start</h2>
+
+  <h3>Build</h3>
+  <pre>./gradlew build</pre>
+
+  <h3>Deploy a pipeline</h3>
+  <pre>./gradlew run --args='--url https://localhost:8443/nifi-api --user admin --pass admin1234567 --file pipeline.yaml'</pre>
+
+  <h3>Or use the CLI directly</h3>
+  <pre>./build/install/nifi-tester/bin/nifi-tester --url https://localhost:8443/nifi-api --file pipeline.yaml</pre>
+
+  <h3>Convert a NiFi export to YAML</h3>
+  <pre>./gradlew run --args='--convert nifi-export.json --output pipeline.yaml'</pre>
+
+  <h3>Validate without deploying (dry-run)</h3>
+  <pre>./gradlew run --args='--file pipeline.yaml --dry-run'</pre>
+</section>
+
+<section>
+  <h2>Sample Pipelines</h2>
+
+  <div class="sample">
+    <h3>GenerateFlowFile + LogAttribute</h3>
+    <p class="meta">A minimal pipeline that generates flow files with custom content and logs them.</p>
+    <pre># sample-generate-pipeline.yaml
+name: Sample GenerateFlowFile Pipeline
+description: A simple pipeline that generates flow files with custom content
+parentGroupId: root
+
+processors:
+  - name: GenerateFlowFile
+    type: org.apache.nifi.processors.standard.GenerateFlowFile
+    x: 200
+    y: 100
+    schedulingStrategy: TIMER_DRIVEN
+    schedulingPeriod: "5 sec"
+    properties:
+      File Size: 1KB
+      Custom Text: Hello World from NiFi Test Pipeline
+
+  - name: LogAttribute
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 500
+    y: 100
+    properties:
+      Log Level: info
+      Log Prefix: "Processed: "
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  - name: Success Relationship
+    sourceId: ${GenerateFlowFile}
+    destinationId: ${LogAttribute}
+    relationships:
+      - success</pre>
+  </div>
+
+  <div class="sample">
+    <h3>Kafka Pipeline</h3>
+    <p class="meta">Consume from Kafka, parse JSON, validate records, route valid/invalid messages, and publish to different topics.</p>
+    <pre># kafka-pipeline.yaml
+name: Kafka Pipeline Sample
+parentGroupId: root
+
+processors:
+  - name: ConsumeKafka
+    type: org.apache.nifi.processors.kafka.ConsumeKafka
+    x: 100
+    y: 100
+    properties:
+      Kafka Brokers: localhost:9092
+      Topic(s): input-topic
+      Group ID: nifi-consumer-group
+
+  - name: ParseJSON
+    type: org.apache.nifi.processors.standard.SplitJson
+    x: 350
+    y: 100
+
+  - name: ValidateRecord
+    type: org.apache.nifi.processors.standard.ValidateRecord
+    x: 600
+    y: 100
+
+  - name: RouteOnAttribute
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 850
+    y: 100
+    properties:
+      '${record.type:equals("VALID")}': VALID
+      '${record.type:equals("INVALID")}': INVALID
+
+  - name: PublishValid
+    type: org.apache.nifi.processors.kafka.PublishKafka
+    x: 1100
+    y: 50
+    properties:
+      Kafka Brokers: localhost:9092
+      Topic Name: valid-topic
+
+  - name: PublishInvalid
+    type: org.apache.nifi.processors.kafka.PublishKafka
+    x: 1100
+    y: 150
+    properties:
+      Kafka Brokers: localhost:9092
+      Topic Name: invalid-topic
+
+  - name: LogInvalid
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 850
+    y: 250
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  - sourceId: ${ConsumeKafka}
+    destinationId: ${ParseJSON}
+    relationships: [success]
+  - sourceId: ${ParseJSON}
+    destinationId: ${ValidateRecord}
+    relationships: [split]
+  - sourceId: ${ValidateRecord}
+    destinationId: ${RouteOnAttribute}
+    relationships: [valid]
+  - sourceId: ${RouteOnAttribute}
+    destinationId: ${PublishValid}
+    relationships: [VALID]
+  - sourceId: ${RouteOnAttribute}
+    destinationId: ${PublishInvalid}
+    relationships: [INVALID]
+  - sourceId: ${RouteOnAttribute}
+    destinationId: ${LogInvalid}
+    relationships: [unmatched]
+  - sourceId: ${ConsumeKafka}
+    destinationId: ${LogInvalid}
+    relationships: [failure]
+
+controllerServices:
+  - name: SchemaRegistry
+    type: org.apache.nifi.confluent.SchemaRegistry
+    properties:
+      Schema Registry URLs: http://localhost:8081</pre>
+  </div>
+
+  <div class="sample">
+    <h3>File Ingestion Pipeline</h3>
+    <p class="meta">Monitor a directory for CSV files, parse them, validate records, route valid data to a database and invalid data to a separate directory.</p>
+    <pre># file-ingestion-pipeline.yaml
+name: File Ingestion Pipeline
+parentGroupId: root
+
+processors:
+  - name: ListFiles
+    type: org.apache.nifi.processors.standard.ListFile
+    x: 100
+    y: 100
+    properties:
+      Input Directory: /data/input
+      File Filter: ".*\\.csv"
+
+  - name: FetchFile
+    type: org.apache.nifi.processors.standard.FetchFile
+    x: 350
+    y: 100
+
+  - name: ParseCSV
+    type: org.apache.nifi.processors.standard.ConvertRecord
+    x: 600
+    y: 100
+
+  - name: ValidateData
+    type: org.apache.nifi.processors.standard.ValidateRecord
+    x: 850
+    y: 100
+
+  - name: RouteValid
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 1100
+    y: 100
+
+  - name: PutToDatabase
+    type: org.apache.nifi.processors.standard.PutDatabaseRecord
+    x: 1350
+    y: 50
+
+  - name: MoveInvalid
+    type: org.apache.nifi.processors.standard.PutFile
+    x: 1350
+    y: 150
+
+  - name: ArchiveFiles
+    type: org.apache.nifi.processors.standard.PutFile
+    x: 350
+    y: 250
+    properties:
+      Directory: /data/archive
+
+connections:
+  - sourceId: ${ListFiles}
+    destinationId: ${FetchFile}
+    relationships: [success]
+  - sourceId: ${FetchFile}
+    destinationId: ${ParseCSV}
+    relationships: [success]
+  - sourceId: ${ParseCSV}
+    destinationId: ${ValidateData}
+    relationships: [success]
+  - sourceId: ${ValidateData}
+    destinationId: ${RouteValid}
+    relationships: [valid]
+  - sourceId: ${RouteValid}
+    destinationId: ${PutToDatabase}
+    relationships: [VALID]
+  - sourceId: ${RouteValid}
+    destinationId: ${MoveInvalid}
+    relationships: [INVALID]
+  - sourceId: ${ListFiles}
+    destinationId: ${ArchiveFiles}
+    relationships: [failure]
+  - sourceId: ${FetchFile}
+    destinationId: ${ArchiveFiles}
+    relationships: [failure]
+  - sourceId: ${ParseCSV}
+    destinationId: ${ArchiveFiles}
+    relationships: [failure]
+  - sourceId: ${ValidateData}
+    destinationId: ${ArchiveFiles}
+    relationships: [failure]
+
+controllerServices:
+  - name: CSVReader
+    type: org.apache.nifi.csv.CSVReader
+  - name: JSONWriter
+    type: org.apache.nifi.json.JsonRecordSetWriter
+  - name: DBService
+    type: org.apache.nifi.dbcp.DBCPConnectionPool
+    properties:
+      Database Connection URL: jdbc:mysql://localhost:3306/mydb</pre>
+  </div>
+
+  <div class="sample">
+    <h3>Error Handling Pipeline</h3>
+    <p class="meta">Retry logic with failure routing — retries failed SQL queries up to 2 times before moving to a dead-letter queue.</p>
+    <pre># error-handling-pipeline.yaml
+name: Error Handling Pipeline
+parentGroupId: root
+
+processors:
+  - name: ProcessData
+    type: org.apache.nifi.processors.standard.ExecuteSQL
+    x: 400
+    y: 100
+
+  - name: CheckRetryCount
+    type: org.apache.nifi.processors.standard.RouteOnAttribute
+    x: 650
+    y: 100
+    properties:
+      '${retry.count:equals("0")}': FIRST_RETRY
+      '${retry.count:equals("1")}': SECOND_RETRY
+      '${retry.count:gt(1)}': MAX_RETRIES_REACHED
+
+  - name: WaitBeforeRetry
+    type: org.apache.nifi.processors.standard.ControlRate
+    x: 650
+    y: 50
+
+  - name: IncrementRetry
+    type: org.apache.nifi.processors.standard.UpdateAttribute
+    x: 650
+    y: 200
+    properties:
+      retry.count: "${retry.count:plus(1)}"
+
+  - name: MoveToFailureQueue
+    type: org.apache.nifi.processors.standard.PutFile
+    x: 900
+    y: 200
+    properties:
+      Directory: /data/failed
+
+  - name: OnSuccess
+    type: org.apache.nifi.processors.standard.LogAttribute
+    x: 400
+    y: 250
+    autoTerminatedRelationships:
+      - success
+
+connections:
+  - sourceId: ${ProcessData}
+    destinationId: ${CheckRetryCount}
+    relationships: [failure]
+  - sourceId: ${ProcessData}
+    destinationId: ${OnSuccess}
+    relationships: [success]
+  - sourceId: ${CheckRetryCount}
+    destinationId: ${WaitBeforeRetry}
+    relationships: [FIRST_RETRY, SECOND_RETRY]
+  - sourceId: ${WaitBeforeRetry}
+    destinationId: ${IncrementRetry}
+    relationships: [success]
+  - sourceId: ${IncrementRetry}
+    destinationId: ${CheckRetryCount}
+    relationships: [success]
+  - sourceId: ${CheckRetryCount}
+    destinationId: ${MoveToFailureQueue}
+    relationships: [MAX_RETRIES_REACHED]</pre>
+  </div>
+
+  <p style="color:var(--muted);font-size:0.9rem;">
+    More samples in the
+    <a href="https://github.com/Giwi/nifi-tester/tree/main/src/test/resources/pipelines">repository's test resources</a>:
+    Groovy scripting, database pipelines, monitoring, and more.
+  </p>
+</section>
+
+<section>
+  <h2>Java API</h2>
+
+  <h3>Basic usage</h3>
+  <pre>import org.giwi.nifi.tester.PipelineManager;
+
+// Deploy a pipeline from YAML
+PipelineManager tester = new PipelineManager(
+    "http://localhost:8080/nifi-api",
+    "admin",
+    "password"
+);
+
+tester.setDryRun(true);  // validate without deploying
+
+PipelineManager.PipelineManagerResult result = tester.deployPipeline(
+    new java.io.File("pipeline.yaml"),
+    "root"
+);</pre>
+
+  <h3>AutoCloseable (try-with-resources)</h3>
+  <pre>try (PipelineManager tester = new PipelineManager(url, username, password)) {
+    PipelineManager.PipelineManagerResult result =
+        tester.deployPipeline(yamlFile, "root");
+    if (result.isSuccess()) {
+        System.out.println("Created: " + result.getProcessGroupId());
+    }
+}
+// Auto-closes and cleans up deployed resources</pre>
+
+  <h3>YAML conversion</h3>
+  <pre>PipelineConverter converter = new PipelineConverter();
+
+// YAML file to NiFi API-compatible map
+java.util.Map&lt;String, Object&gt; result =
+    converter.convertFromYaml(new java.io.File("pipeline.yaml"));
+
+// NiFi JSON export to YAML
+converter.convertToYaml(new java.io.File("nifi-export.json"),
+                        new java.io.File("pipeline.yaml"));</pre>
+
+  <h3>JUnit 5 Integration Test</h3>
+  <pre>import org.giwi.nifi.tester.NiFiConnection;
+
+@NiFiConnection(url = "https://localhost:8443/nifi-api",
+                 user = "admin",
+                 password = "admin1234567")
+class MyIntegrationTest {
+
+    @Test
+    void testDeploy() {
+        PipelineManager tester = new PipelineManager(getClass());
+        PipelineManager.PipelineManagerResult result =
+            tester.deployPipeline(new java.io.File("pipeline.yaml"), "root");
+        assertTrue(result.isSuccess());
+    }
+}</pre>
+</section>
+
+<section>
+  <h2>CLI Reference</h2>
+
+  <table>
+    <thead>
+      <tr><th>Option</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>--url &lt;url&gt;</code></td><td>NiFi API URL (default: <code>https://localhost:8443/nifi-api</code>)</td></tr>
+      <tr><td><code>--user &lt;u&gt;</code></td><td>NiFi username</td></tr>
+      <tr><td><code>--pass &lt;p&gt;</code></td><td>NiFi password</td></tr>
+      <tr><td><code>--file &lt;path&gt;</code></td><td>Path to YAML pipeline file</td></tr>
+      <tr><td><code>--parent &lt;id&gt;</code></td><td>Parent process group ID (default: root)</td></tr>
+      <tr><td><code>--convert &lt;path&gt;</code></td><td>Convert NiFi JSON export to YAML</td></tr>
+      <tr><td><code>--export &lt;id&gt;</code></td><td>Export process group to YAML</td></tr>
+      <tr><td><code>--dry-run</code></td><td>Validate without deploying</td></tr>
+      <tr><td><code>--save-template &lt;n&gt; &lt;f&gt;</code></td><td>Save YAML as reusable template</td></tr>
+      <tr><td><code>--load-template &lt;n&gt;</code></td><td>Load a saved template</td></tr>
+      <tr><td><code>--list-templates</code></td><td>List available templates</td></tr>
+      <tr><td><code>--list-groups [id]</code></td><td>List process groups</td></tr>
+      <tr><td><code>--show-group &lt;id&gt;</code></td><td>Show process group details</td></tr>
+      <tr><td><code>--config &lt;u,u,p&gt;</code></td><td>Save config to <code>~/.nifi-tester.yml</code></td></tr>
+      <tr><td><code>--help, -h</code></td><td>Show help message</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Run tests</h3>
+  <pre>./gradlew test                   # unit tests (no NiFi required)
+./gradlew integrationTest         # integration tests (NiFi required)
+./gradlew test --tests "*.PipelineConverterTest"</pre>
+</section>
+
+<section>
+  <h2>Tech Stack</h2>
+  <p style="color:var(--muted); margin-bottom:8px;">
+    Java 17 &middot; Spring Boot 3.4.1 &middot; Jackson (YAML, JSR310) &middot;
+    OpenAPI Generator 7.14.0 &middot; JUnit 5 &middot; Gradle 9.4.1+
+  </p>
+  <table>
+    <thead>
+      <tr><th>Property</th><th>Default</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>nifi.url</code></td><td><code>http://localhost:8080/nifi-api</code></td><td>NiFi API URL</td></tr>
+      <tr><td><code>nifi.user</code></td><td><code>admin</code></td><td>Username</td></tr>
+      <tr><td><code>nifi.pass</code></td><td><code>admin</code></td><td>Password</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</div>
+
+<footer>
+  <a href="https://github.com/Giwi/nifi-tester">GitHub</a>
+  <span>&middot;</span>
+  <a href="https://github.com/Giwi/nifi-tester/blob/main/CHANGELOG.md">Changelog</a>
+  <span>&middot;</span>
+  <a href="https://giwi.fr">GiwiSoft</a>
+  <br>
+  NiFi Tester &copy; 2026 GiwiSoft
+</footer>
+
+</body>
+</html>
